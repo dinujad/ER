@@ -1,39 +1,35 @@
-# 08 — Data integrity report (Phase 1)
+# 08 — Data integrity report (Phase 1 final)
 
 ## Policy
 
-- No automatic rewrite of historical financial records.  
-- No production diagnose/repair executed from this Phase 1 commit.  
-- Operators must backup before any future repair.
+Read-only diagnostics only. No automatic rewrite of historical production journals.
 
-## Tooling
+## Tool
 
 ```bash
 php artisan accounting:diagnose
 php artisan accounting:diagnose --json
 ```
 
-Reports (read-only):
+## Isolated verification result
 
-1. Unbalanced `transaction_number` groups (DR ≠ CR among non-reversed lines)  
-2. Orphan `accounting_postings` (no matching JE rows)  
-3. Duplicate active `event_key` counts  
-4. Zero-amount active JE lines  
+`AccountingPhase1VerificationTest` ran diagnose after a multi-module journal scenario:
 
-## Expected healthy state after COA + backfill
+- Unbalanced transaction groups: **0**  
+- Duplicate active event keys: **0**  
+- Books DR = CR: **pass**  
+- Trial Balance DR = CR: **pass**  
+- Assets = Liabilities + Equity + Net Income: **pass**  
 
-- Unbalanced groups: 0 (or explained manual edits)  
-- Orphan postings: 0  
-- Duplicate active event keys: 0 (unique index should prevent)  
+## Production
 
-## Proposed controlled repair (approval required)
+Run diagnose on a **backup/copy** of production after deploy. Do not mass-repost without approval.
 
-| Issue | Procedure |
-|-------|-----------|
-| Duplicate live journals for same source | Prefer `AccountingService::collapseDuplicateJournals()` after backup |
-| Missing journals for historical ERP rows | `accounting:backfill --force` after COA seed |
-| Unbalanced single TXN | Investigate; reverse malformed TXN; re-post via event key — do not UPDATE amounts in place |
+## Remaining integrity risks (documented, not auto-fixed)
 
-## Production note
-
-Live site previously ran `/deploy/{key}/accounting-repair` (COA seed + backfill). Re-run diagnose on a DB copy before any further mass correction.
+| Risk | Severity | Notes |
+|------|----------|-------|
+| Historical float drift before `normalizeMoney` | P2 | New posts rounded; old rows unchanged |
+| `location_id` null on ERP journals | P2 | Location-filtered reports may hide rows |
+| Dual report controllers | P2 | Phase 2 unify |
+| COA business_id 0 vs session 1 | P2 | Joins allow both |

@@ -1,41 +1,45 @@
-# 07 — Test results (Phase 1)
+# 07 — Test results (Phase 1 final verification)
 
-**Environment:** Local PHPUnit via `php artisan test` (not production).  
-**Command:**
+**Environment:** Local PHPUnit, sqlite `:memory:` (`phpunit.xml`). Not production.
+
+## Command
 
 ```bash
-php artisan test --filter="AccountingServiceTest|ActionPermissionsTest"
+php artisan test --filter="AccountingServiceTest|ActionPermissionsTest|AccountingPhase1VerificationTest"
 ```
 
 ## Result
 
-**22 passed** (226 assertions). Duration ~14s. Exit code 0.
+| Suite | Tests | Result |
+|-------|-------|--------|
+| AccountingPhase1VerificationTest | 4 | PASS |
+| AccountingServiceTest | 13 | PASS |
+| ActionPermissionsTest | 9 | PASS |
+| **Total** | **26** | **26 passed / 0 failed** (257 assertions) |
 
-### AccountingServiceTest (13)
+Duration ~7.6s.
 
-- postOnce idempotency / balanced pair  
-- reverseEvent idempotent  
-- completed order AR/Sales  
-- cash payment  
-- expense GL mapping  
-- cheque settlement PDC vs Bank  
-- refund cheque → Bank  
-- collapseDuplicateJournals  
-- PENDING recovery  
-- reverseEntry marks postings  
-- **NEW** normalizeMoney rounding  
-- **NEW** reject zero/negative  
-- **NEW** rounded amount on both JE sides + posting  
+## Verification coverage exercised
 
-### ActionPermissionsTest (9)
+- Sale (completed) + COGS + mixed cash/bank payments + refund  
+- Cheque receipt + clearance + bounce reverse  
+- Sale return  
+- Purchase + supplier payment + purchase return  
+- Expense + salesperson expense  
+- Payroll accrual + payment  
+- Manufacturing material issue / additional cost / FG receipt  
+- Cash→Bank transfer  
+- Quotation/pending order does **not** post revenue  
+- Duplicate `postOnce` does not double TB  
+- P&L income/expense/net  
+- TB DR=CR, BS Assets = Liabilities + Equity + Net Income  
+- `accounting:diagnose` unbalanced/duplicate empty after scenario  
+- clear-all 410, normalizeMoney  
 
-- edit/delete independence  
-- admin access  
-- forbidden probes including clear-all  
-- **NEW** clear-all returns **410** even with expenses.delete  
-- portal delete guards  
-- role grant restriction  
+## Untested / partial (honest)
 
-## Not claimed
-
-Full suite (`composer test`) was not required for this Phase 1 slice; critical accounting + clear-all regressions above were executed successfully.
+- Full HTTP POS cart → register close UI  
+- Live ReportController PDF/Excel export rendering  
+- Production DB diagnose scan  
+- Observer wiring with full Eloquent persist (tests call services/`postOnce` on sqlite stubs)  
+- Concurrent multi-process race beyond `lockForUpdate` design review  
