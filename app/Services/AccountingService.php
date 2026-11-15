@@ -48,6 +48,8 @@ class AccountingService
     public const GL_DEPRECIATION_EXPENSE    = '6400';
     public const GL_INTEREST_EXPENSE        = '6410';
     public const GL_LOSS_ON_DISPOSAL        = '6500';
+    public const GL_TAX_RECEIVABLE          = '1160';
+    public const GL_TAX_PAYABLE             = '2300';
 
     /** Return the chart_of_accounts.id for a GL code (or null if not found). */
     public static function accountId(string $glCode): ?int

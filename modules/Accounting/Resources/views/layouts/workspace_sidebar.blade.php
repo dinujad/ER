@@ -168,6 +168,32 @@
             <i class="bi bi-shield-check"></i> Audit Log
         </a>
 
+        <div class="acct-ws-section">Phase 4 Analytics</div>
+        <a href="{{ url('accounting/phase4/financial-dashboard') }}" class="acct-ws-link {{ request()->is('accounting/phase4/financial-dashboard*') ? 'active' : '' }}">
+            <i class="bi bi-bar-chart-line"></i> Financial Dashboard
+        </a>
+        <a href="{{ url('accounting/phase4/statements/profit-and-loss') }}" class="acct-ws-link {{ request()->is('accounting/phase4/statements*') ? 'active' : '' }}">
+            <i class="bi bi-graph-up-arrow"></i> Statements (comparative)
+        </a>
+        <a href="{{ url('accounting/phase4/custom-reports') }}" class="acct-ws-link {{ request()->is('accounting/phase4/custom-reports*') ? 'active' : '' }}">
+            <i class="bi bi-bookmark-star"></i> Saved Reports
+        </a>
+        <a href="{{ url('accounting/phase4/cash-forecast') }}" class="acct-ws-link {{ request()->is('accounting/phase4/cash-forecast*') ? 'active' : '' }}">
+            <i class="bi bi-graph-up"></i> Cash Forecast
+        </a>
+        <a href="{{ url('accounting/phase4/kpi-analytics') }}" class="acct-ws-link {{ request()->is('accounting/phase4/kpi-analytics*') ? 'active' : '' }}">
+            <i class="bi bi-speedometer"></i> KPI Analytics
+        </a>
+        <a href="{{ url('accounting/phase4/tax') }}" class="acct-ws-link {{ request()->is('accounting/phase4/tax*') ? 'active' : '' }}">
+            <i class="bi bi-percent"></i> Tax Management
+        </a>
+        <a href="{{ url('accounting/phase4/year-end') }}" class="acct-ws-link {{ request()->is('accounting/phase4/year-end*') ? 'active' : '' }}">
+            <i class="bi bi-calendar2-check"></i> Year-End Closing
+        </a>
+        <a href="{{ url('accounting/phase4/scheduled-reports') }}" class="acct-ws-link {{ request()->is('accounting/phase4/scheduled-reports*') ? 'active' : '' }}">
+            <i class="bi bi-clock"></i> Scheduled Reports
+        </a>
+
         <div class="acct-ws-section">Financial Reports</div>
         <a href="{{ url('report/accounting/profit_and_loss') }}" class="acct-ws-link {{ request()->is('report/accounting/profit_and_loss*') ? 'active' : '' }}">
             <i class="bi bi-graph-up"></i> Profit &amp; Loss

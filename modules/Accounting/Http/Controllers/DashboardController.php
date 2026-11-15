@@ -2,6 +2,7 @@
 
 namespace Modules\Accounting\Http\Controllers;
 
+use App\Services\Accounting\FinancialDashboardService;
 use App\Services\AccountingWorkspaceMetrics;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -15,12 +16,12 @@ class DashboardController extends Controller
     /**
      * Accounting Workspace overview — KPIs from posted journals (LKR).
      */
-    public function index(Request $request, AccountingWorkspaceMetrics $metrics)
+    public function index(Request $request, FinancialDashboardService $financialDashboard)
     {
         $start = $request->input('start_date') ?: (function_exists('financial_year_start_date') ? financial_year_start_date() : date('Y-01-01'));
         $end = $request->input('end_date') ?: date('Y-m-d');
 
-        $summary = $metrics->summary($start, $end);
+        $summary = $financialDashboard->dashboard($start, $end);
 
         $counts = [
             'accounts' => Schema::hasTable('chart_of_accounts')

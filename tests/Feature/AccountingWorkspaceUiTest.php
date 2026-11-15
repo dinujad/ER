@@ -51,6 +51,14 @@ class AccountingWorkspaceUiTest extends TestCase
         $this->get('/accounting')->assertRedirect('/accounting/dashboard');
     }
 
+    public function test_authorized_user_can_open_phase4_routes(): void
+    {
+        $this->actingAs($this->userWithPermissions(['accounting.view']));
+        $this->get('/accounting/phase4/statements/profit-and-loss')->assertOk();
+        $this->get('/accounting/phase4/kpi-analytics')->assertOk();
+        $this->get('/accounting/phase4/tax')->assertOk();
+    }
+
     public function test_workspace_metrics_use_journal_balances_not_placeholders(): void
     {
         Schema::dropIfExists('accounting_postings');

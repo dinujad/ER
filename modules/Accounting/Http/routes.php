@@ -19,12 +19,12 @@ Route::group(['middleware' => ['web', 'auth', 'accounting.session', 'accounting.
         Route::get('get_totals', 'DashboardController@get_totals');
     });
 
-    /**Accounting routes */
-    Route::get('trial_balance', 'AccountingController@trial_balance');
-    Route::get('ledger', 'AccountingController@ledger');
-    Route::get('balance_sheet', 'AccountingController@balance_sheet');
-    Route::get('profit_and_loss', 'AccountingController@profit_and_loss');
-    Route::get('cash_flow', 'AccountingController@cash_flow');
+    /** Legacy report aliases → workspace report routes */
+    Route::get('trial_balance', fn () => redirect('/report/accounting/trial_balance'));
+    Route::get('ledger', fn () => redirect('/report/accounting/ledger'));
+    Route::get('balance_sheet', fn () => redirect('/report/accounting/balance_sheet'));
+    Route::get('profit_and_loss', fn () => redirect('/report/accounting/profit_and_loss'));
+    Route::get('cash_flow', fn () => redirect('/report/accounting/cash_flow'));
 
     //chart of accounts
     Route::prefix('chart_of_account')->group(function () {
@@ -246,6 +246,35 @@ Route::group(['middleware' => ['web', 'auth', 'accounting.session', 'accounting.
         Route::get('profit-and-loss', 'CostCenterReportController@profitAndLoss');
         Route::get('profit-and-loss/{format}', 'CostCenterReportController@profitAndLossExport')->where('format', 'pdf|xlsx|xls|csv');
         Route::get('journals', 'CostCenterReportController@journals');
+    });
+
+    // Phase 4 — Advanced financial reporting & analytics
+    Route::prefix('phase4')->group(function () {
+        Route::get('financial-dashboard', 'FinancialDashboardController@show');
+        Route::prefix('statements')->group(function () {
+            Route::get('profit-and-loss', 'FinancialStatementController@profitAndLoss');
+            Route::get('balance-sheet', 'FinancialStatementController@balanceSheet');
+            Route::get('cash-flow', 'FinancialStatementController@cashFlow');
+            Route::get('changes-in-equity', 'FinancialStatementController@changesInEquity');
+            Route::get('trial-balance', 'FinancialStatementController@trialBalance');
+        });
+        Route::get('custom-reports', 'CustomReportController@index');
+        Route::post('custom-reports', 'CustomReportController@store');
+        Route::get('custom-reports/{id}/preview', 'CustomReportController@preview')->whereNumber('id');
+        Route::delete('custom-reports/{id}', 'CustomReportController@destroy')->whereNumber('id');
+        Route::get('cash-forecast', 'CashForecastController@index');
+        Route::post('cash-forecast', 'CashForecastController@store');
+        Route::get('kpi-analytics', 'FinancialKpiController@index');
+        Route::get('tax', 'TaxManagementController@index');
+        Route::post('tax/codes', 'TaxManagementController@storeCode');
+        Route::post('tax/periods', 'TaxManagementController@storePeriod');
+        Route::get('tax/periods/{id}/summary', 'TaxManagementController@summary')->whereNumber('id');
+        Route::get('year-end', 'YearEndClosingController@index');
+        Route::post('year-end/years', 'YearEndClosingController@storeYear');
+        Route::get('year-end/{id}', 'YearEndClosingController@show')->whereNumber('id');
+        Route::post('year-end/{id}/execute', 'YearEndClosingController@execute')->whereNumber('id');
+        Route::get('scheduled-reports', 'ScheduledReportController@index');
+        Route::post('scheduled-reports', 'ScheduledReportController@store');
     });
 
     // Phase 3 — Advanced budgeting

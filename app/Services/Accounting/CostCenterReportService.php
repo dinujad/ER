@@ -26,10 +26,14 @@ class CostCenterReportService
             ->whereBetween('je.date', [$from, $to])
             ->whereIn('coa.account_type', ['income', 'expense']);
 
-        if ($costCenterId === null) {
-            $q->whereNull('je.cost_center_id');
-        } else {
-            $q->where('je.cost_center_id', $costCenterId);
+        if (Schema::hasColumn('journal_entries', 'cost_center_id')) {
+            if ($costCenterId === null) {
+                $q->whereNull('je.cost_center_id');
+            } else {
+                $q->where('je.cost_center_id', $costCenterId);
+            }
+        } elseif ($costCenterId !== null) {
+            $q->whereRaw('0 = 1');
         }
 
         $rows = $q->selectRaw('coa.id as account_id, coa.gl_code, coa.name, coa.account_type,

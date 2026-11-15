@@ -10,7 +10,7 @@ class AccountingAuditService
 {
     public static function record(
         string $action,
-        ?Model $subject = null,
+        mixed $subject = null,
         ?array $before = null,
         ?array $after = null,
         ?string $reason = null,
@@ -21,12 +21,22 @@ class AccountingAuditService
             return null;
         }
 
+        $subjectType = null;
+        $subjectId = null;
+        if ($subject instanceof Model) {
+            $subjectType = $subject->getMorphClass();
+            $subjectId = $subject->getKey();
+        } elseif (is_object($subject) && isset($subject->id)) {
+            $subjectId = (int) $subject->id;
+            $subjectType = $subject::class;
+        }
+
         return AccountingAuditEvent::create([
             'business_id' => $businessId,
             'user_id' => $userId ?? auth()->id(),
             'action' => $action,
-            'subject_type' => $subject ? $subject->getMorphClass() : null,
-            'subject_id' => $subject?->getKey(),
+            'subject_type' => $subjectType,
+            'subject_id' => $subjectId,
             'before_state' => $before,
             'after_state' => $after,
             'reason' => $reason,

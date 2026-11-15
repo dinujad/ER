@@ -110,6 +110,63 @@
     </div>
 </div>
 
+@if(!empty($summary['gross_profit']))
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="acct-card h-100"><div class="acct-card-body">
+            <div class="text-muted small text-uppercase">Gross profit</div>
+            <div class="fs-5 fw-bold mt-1">{{ $fmt($summary['gross_profit'] ?? null) }}</div>
+            @if(isset($summary['gross_margin_pct']))<div class="small text-muted">{{ $summary['gross_margin_pct'] }}% margin</div>@endif
+        </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="acct-card h-100"><div class="acct-card-body">
+            <div class="text-muted small text-uppercase">Working capital</div>
+            <div class="fs-5 fw-bold mt-1">{{ $fmt($summary['working_capital'] ?? null) }}</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="acct-card h-100"><div class="acct-card-body">
+            <div class="text-muted small text-uppercase">Current ratio</div>
+            <div class="fs-5 fw-bold mt-1">{{ $summary['current_ratio'] ?? 'N/A' }}</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="acct-card h-100"><div class="acct-card-body">
+            <div class="text-muted small text-uppercase">Loan outstanding</div>
+            <div class="fs-5 fw-bold mt-1">{{ $fmt($summary['loan_outstanding'] ?? null) }}</div>
+        </div></div>
+    </div>
+</div>
+@if(!empty($summary['chart']))
+<div class="acct-card mb-4">
+    <div class="acct-card-head"><h6 class="mb-0">Monthly revenue vs expense</h6></div>
+    <div class="acct-card-body"><canvas id="acctRevenueExpenseChart" height="100"></canvas></div>
+</div>
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    const chartData = @json($summary['chart']);
+    const el = document.getElementById('acctRevenueExpenseChart');
+    if (!el || !chartData.length) return;
+    new Chart(el, {
+        type: 'bar',
+        data: {
+            labels: chartData.map(r => r.month),
+            datasets: [
+                { label: 'Revenue', data: chartData.map(r => r.revenue), backgroundColor: 'rgba(13,110,253,0.6)' },
+                { label: 'Expense', data: chartData.map(r => r.expense), backgroundColor: 'rgba(220,53,69,0.55)' }
+            ]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true } } }
+    });
+})();
+</script>
+@endpush
+@endif
+@endif
+
 <div class="row g-3">
     <div class="col-lg-8">
         <div class="acct-card">
