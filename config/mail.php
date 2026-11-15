@@ -39,7 +39,13 @@ return [
 
         'smtp' => [
             'transport' => 'smtp',
-            'scheme' => env('MAIL_SCHEME'),
+            // Laravel 9+ prefers MAIL_SCHEME, but keep MAIL_ENCRYPTION as a backward-compatible
+            // fallback so existing .env files (ssl → smtps, tls → smtp) keep working.
+            'scheme' => env('MAIL_SCHEME', match (strtolower((string) env('MAIL_ENCRYPTION'))) {
+                'ssl' => 'smtps',
+                'tls', 'starttls' => 'smtp',
+                default => null,
+            }),
             'url' => env('MAIL_URL'),
             'host' => env('MAIL_HOST', '127.0.0.1'),
             'port' => env('MAIL_PORT', 2525),

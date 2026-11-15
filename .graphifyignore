@@ -1,0 +1,17 @@
+# Graphify — skip bulky / generated paths (Laravel)
+vendor/
+node_modules/
+storage/
+bootstrap/cache/
+public/build/
+public/hot/
+public/storage/
+.phpunit.cache/
+.git/
+.idea/
+.vscode/
+*.zip
+.env
+.env.*
+!.env.example
+graphify-out/

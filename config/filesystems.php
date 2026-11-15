@@ -33,7 +33,9 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // When true, Laravel registers GET storage/{path} for this disk (private root).
+            // That intercepts public /storage/... URLs and returns 403 for files on the public disk.
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

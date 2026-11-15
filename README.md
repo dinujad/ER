@@ -21,6 +21,27 @@ Laravel is a web application framework with expressive, elegant syntax. We belie
 
 Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
+## POS (Point of Sale)
+
+The app includes an UltimatePOS-style POS with session cart, register open/close, draft/suspend/quotation, and multiple payment modes.
+
+### Run steps
+
+1. Run migrations and seed a default store:
+   ```bash
+   php artisan migrate --force
+   php artisan db:seed --class=StoreSeeder --force
+   ```
+2. Ensure you have at least one **customer** (e.g. Walk-in is created when you open POS), **products**, and **expense categories** (for Add Expense).
+3. Open POS: log in, then go to **POS** (e.g. `/erp/pos`).
+4. **Open Register**: in the top bar click "Open Register", enter opening cash and note, then Open. Cash payments are disabled until the register is open.
+5. Add products from the grid or via search/barcode; adjust qty, discount, tax, shipping. Use **Cash**, **Card**, **Multiple Pay**, or **Credit Sale** (requires a non–walk-in customer with credit limit). **Draft** / **Quotation** / **Suspend** save the cart without finalizing. **Recent Transactions** opens the last 20 sales with a Print link.
+
+### Optional
+
+- `POS_ALLOW_OVERSELL=true` in `.env` allows adding to cart beyond stock.
+- Receipt: after a sale you can **Print** or **Download PDF**.
+
 ## Learning Laravel
 
 Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.

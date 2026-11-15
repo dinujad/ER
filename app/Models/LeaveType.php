@@ -1,0 +1,27 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
+class LeaveType extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'name', 'code', 'days_per_year', 'carry_forward_days', 'is_paid',
+        'requires_approval', 'is_active', 'description',
+    ];
+
+    protected $casts = [
+        'is_paid' => 'boolean',
+        'requires_approval' => 'boolean',
+        'is_active' => 'boolean',
+    ];
+
+    public function leaveRequests()
+    {
+        return $this->hasMany(LeaveRequest::class);
+    }
+}

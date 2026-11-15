@@ -2,6 +2,15 @@
 
 use Illuminate\Support\Str;
 
+/*
+| cPanel / shared hosting: MySQL often accepts only "localhost" (Unix socket).
+| .env may keep DB_HOST=127.0.0.1 — we map it here so .env does not need changing.
+*/
+$mysqlHost = env('DB_HOST', 'localhost');
+if ($mysqlHost === '127.0.0.1') {
+    $mysqlHost = 'localhost';
+}
+
 return [
 
     /*
@@ -46,7 +55,7 @@ return [
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),
-            'host' => env('DB_HOST', '127.0.0.1'),
+            'host' => $mysqlHost,
             'port' => env('DB_PORT', '3306'),
             'database' => env('DB_DATABASE', 'laravel'),
             'username' => env('DB_USERNAME', 'root'),
@@ -57,6 +66,14 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'strict' => true,
+            'timezone' => env('DB_TIMEZONE', '+05:30'),
+            'modes' => [
+                'STRICT_TRANS_TABLES',
+                'NO_ZERO_IN_DATE',
+                'NO_ZERO_DATE',
+                'ERROR_FOR_DIVISION_BY_ZERO',
+                'NO_ENGINE_SUBSTITUTION',
+            ],
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 (PHP_VERSION_ID >= 80500 ? \Pdo\Mysql::ATTR_SSL_CA : \PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
@@ -66,7 +83,7 @@ return [
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),
-            'host' => env('DB_HOST', '127.0.0.1'),
+            'host' => $mysqlHost,
             'port' => env('DB_PORT', '3306'),
             'database' => env('DB_DATABASE', 'laravel'),
             'username' => env('DB_USERNAME', 'root'),
@@ -77,6 +94,7 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'strict' => true,
+            'timezone' => env('DB_TIMEZONE', '+05:30'),
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 (PHP_VERSION_ID >= 80500 ? \Pdo\Mysql::ATTR_SSL_CA : \PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),

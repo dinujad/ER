@@ -35,4 +35,36 @@ return [
         ],
     ],
 
+    'hikvision' => [
+        'app_key' => env('HIKVISION_APP_KEY'),
+        'app_secret' => env('HIKVISION_APP_SECRET'),
+        'base_url' => env('HIKVISION_BASE_URL'),
+    ],
+
+    'textlk' => [
+        'api_key' => env('TEXTLK_API_KEY'),
+        'sender_id' => env('TEXTLK_SENDER_ID', env('APP_NAME', 'Laravel')),
+        'url' => env('TEXTLK_URL', 'https://app.text.lk/api/v3/sms/send'),
+    ],
+
+    /*
+     * HostGrap WhatsApp API (https://wa-api.hostgrap.com). Prefer ERP → Cheque / WhatsApp settings in DB;
+     * env vars are optional fallbacks for CI / first deploy.
+     */
+    'hostgrap' => [
+        'email' => env('HOSTGRAP_WHATSAPP_EMAIL'),
+        'api_key' => env('HOSTGRAP_WHATSAPP_API_KEY'),
+        'admin_phone' => env('HOSTGRAP_ADMIN_WHATSAPP_PHONE'),
+        'send_message_url' => env('HOSTGRAP_SEND_MESSAGE_URL', 'https://wa-api.hostgrap.com/api/send-message.php'),
+        'send_image_url' => env('HOSTGRAP_SEND_IMAGE_URL', 'https://wa-api.hostgrap.com/api/send-image.php'),
+    ],
+
+    /*
+     * Google Maps Platform API (API name: Maps JavaScript API / Places API).
+     * Set GOOGLE_MAPS_API_KEY in .env for future use (e.g. location autocomplete, map display for driver start point / destination).
+     */
+    'google' => [
+        'maps_api_key' => env('GOOGLE_MAPS_API_KEY'),
+    ],
+
 ];
