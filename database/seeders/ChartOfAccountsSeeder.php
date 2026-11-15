@@ -90,6 +90,27 @@ class ChartOfAccountsSeeder extends Seeder
                 'account_subtype_id'=> $subtypeId('asset', 'Current Assets'),
                 'allow_manual'      => 1,
             ],
+            [
+                'gl_code'           => '1400',
+                'name'              => 'Fixed Assets',
+                'account_type'      => 'asset',
+                'account_subtype_id'=> $subtypeId('asset', 'Current Assets'),
+                'allow_manual'      => 1,
+            ],
+            [
+                'gl_code'           => '1450',
+                'name'              => 'Accumulated Depreciation',
+                'account_type'      => 'asset',
+                'account_subtype_id'=> $subtypeId('asset', 'Current Assets'),
+                'allow_manual'      => 1,
+            ],
+            [
+                'gl_code'           => '1500',
+                'name'              => 'Plant & Equipment',
+                'account_type'      => 'asset',
+                'account_subtype_id'=> $subtypeId('asset', 'Current Assets'),
+                'allow_manual'      => 1,
+            ],
 
             // ── LIABILITIES ─────────────────────────────────────────────────
             [
@@ -102,6 +123,20 @@ class ChartOfAccountsSeeder extends Seeder
             [
                 'gl_code'           => '2100',
                 'name'              => 'Other Current Liabilities',
+                'account_type'      => 'liability',
+                'account_subtype_id'=> $subtypeId('liability', 'Current Liabilities'),
+                'allow_manual'      => 1,
+            ],
+            [
+                'gl_code'           => '2200',
+                'name'              => 'Loans Payable',
+                'account_type'      => 'liability',
+                'account_subtype_id'=> $subtypeId('liability', 'Current Liabilities'),
+                'allow_manual'      => 1,
+            ],
+            [
+                'gl_code'           => '2210',
+                'name'              => 'Interest Payable',
                 'account_type'      => 'liability',
                 'account_subtype_id'=> $subtypeId('liability', 'Current Liabilities'),
                 'allow_manual'      => 1,
@@ -141,6 +176,13 @@ class ChartOfAccountsSeeder extends Seeder
             [
                 'gl_code'           => '4100',
                 'name'              => 'Other Income',
+                'account_type'      => 'income',
+                'account_subtype_id'=> $subtypeId('income', 'Other Income'),
+                'allow_manual'      => 1,
+            ],
+            [
+                'gl_code'           => '4500',
+                'name'              => 'Gain on Asset Disposal',
                 'account_type'      => 'income',
                 'account_subtype_id'=> $subtypeId('income', 'Other Income'),
                 'allow_manual'      => 1,
@@ -192,6 +234,27 @@ class ChartOfAccountsSeeder extends Seeder
             [
                 'gl_code'           => '6900',
                 'name'              => 'Other Operating Expenses',
+                'account_type'      => 'expense',
+                'account_subtype_id'=> $subtypeId('expense', 'Other Expenses'),
+                'allow_manual'      => 1,
+            ],
+            [
+                'gl_code'           => '6400',
+                'name'              => 'Depreciation Expense',
+                'account_type'      => 'expense',
+                'account_subtype_id'=> $subtypeId('expense', 'Operating Expenses'),
+                'allow_manual'      => 1,
+            ],
+            [
+                'gl_code'           => '6410',
+                'name'              => 'Interest Expense',
+                'account_type'      => 'expense',
+                'account_subtype_id'=> $subtypeId('expense', 'Operating Expenses'),
+                'allow_manual'      => 1,
+            ],
+            [
+                'gl_code'           => '6500',
+                'name'              => 'Loss on Asset Disposal',
                 'account_type'      => 'expense',
                 'account_subtype_id'=> $subtypeId('expense', 'Other Expenses'),
                 'allow_manual'      => 1,

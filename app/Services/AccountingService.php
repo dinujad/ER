@@ -38,6 +38,15 @@ class AccountingService
     public const GL_UTILITIES_EXPENSE = '6200';
     public const GL_TRANSPORT_EXPENSE = '6300';
     public const GL_OTHER_EXPENSE    = '6900';
+    public const GL_FIXED_ASSETS            = '1400';
+    public const GL_ACCUMULATED_DEPRECIATION = '1450';
+    public const GL_PPE_EQUIPMENT           = '1500';
+    public const GL_LOANS_PAYABLE           = '2200';
+    public const GL_INTEREST_PAYABLE        = '2210';
+    public const GL_GAIN_ON_DISPOSAL        = '4500';
+    public const GL_DEPRECIATION_EXPENSE    = '6400';
+    public const GL_INTEREST_EXPENSE        = '6410';
+    public const GL_LOSS_ON_DISPOSAL        = '6500';
 
     /** Return the chart_of_accounts.id for a GL code (or null if not found). */
     public static function accountId(string $glCode): ?int

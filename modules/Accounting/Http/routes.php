@@ -157,6 +157,80 @@ Route::group(['middleware' => ['web', 'auth', 'accounting.session', 'accounting.
 
     Route::get('audit-log', 'AccountingAuditController@index');
 
+    // Phase 3 — Fixed assets
+    Route::prefix('fixed-assets')->group(function () {
+        Route::get('/', 'FixedAssetController@index');
+        Route::get('create', 'FixedAssetController@create');
+        Route::post('/', 'FixedAssetController@store');
+        Route::get('{id}', 'FixedAssetController@show')->whereNumber('id');
+        Route::get('{id}/edit', 'FixedAssetController@edit')->whereNumber('id');
+        Route::post('{id}', 'FixedAssetController@update')->whereNumber('id');
+        Route::post('{id}/submit', 'FixedAssetController@submit')->whereNumber('id');
+        Route::post('{id}/approve', 'FixedAssetController@approve')->whereNumber('id');
+        Route::post('{id}/capitalize', 'FixedAssetController@capitalize')->whereNumber('id');
+        Route::post('{id}/transfer', 'FixedAssetController@transfer')->whereNumber('id');
+        Route::post('{id}/deactivate', 'FixedAssetController@deactivate')->whereNumber('id');
+    });
+    Route::prefix('fixed-asset-categories')->group(function () {
+        Route::get('/', 'FixedAssetCategoryController@index');
+        Route::post('/', 'FixedAssetCategoryController@store');
+        Route::post('{id}', 'FixedAssetCategoryController@update')->whereNumber('id');
+    });
+    Route::prefix('depreciation')->group(function () {
+        Route::get('runs', 'DepreciationController@runs');
+        Route::get('preview', 'DepreciationController@preview');
+        Route::post('runs', 'DepreciationController@postRun');
+        Route::post('runs/{id}/reverse', 'DepreciationController@reverseRun')->whereNumber('id');
+        Route::get('assets/{assetId}/schedule', 'DepreciationController@assetSchedule')->whereNumber('assetId');
+    });
+    Route::get('asset-disposals', 'AssetDisposalController@create');
+    Route::post('asset-disposals', 'AssetDisposalController@store');
+
+    // Phase 3 — Loans
+    Route::prefix('loans')->group(function () {
+        Route::get('/', 'LoanController@index');
+        Route::get('create', 'LoanController@create');
+        Route::post('/', 'LoanController@store');
+        Route::get('{id}', 'LoanController@show')->whereNumber('id');
+        Route::post('{id}/schedule', 'LoanController@generateSchedule')->whereNumber('id');
+        Route::post('{id}/disburse', 'LoanController@disburse')->whereNumber('id');
+        Route::get('{id}/payment', 'LoanController@paymentForm')->whereNumber('id');
+        Route::post('{id}/payment', 'LoanController@recordPayment')->whereNumber('id');
+        Route::get('{id}/statement', 'LoanController@statement')->whereNumber('id');
+    });
+
+    // Phase 3 — Cost accounting
+    Route::prefix('cost-centers')->group(function () {
+        Route::get('/', 'CostCenterController@index');
+        Route::get('create', 'CostCenterController@create');
+        Route::post('/', 'CostCenterController@store');
+        Route::get('{id}/edit', 'CostCenterController@edit')->whereNumber('id');
+        Route::post('{id}', 'CostCenterController@update')->whereNumber('id');
+    });
+    Route::prefix('cost-allocations')->group(function () {
+        Route::get('/', 'CostCenterController@allocationsIndex');
+        Route::get('create', 'CostCenterController@allocationsCreate');
+        Route::post('/', 'CostCenterController@allocationsStore');
+    });
+
+    // Phase 3 — Job & manufacturing accounting
+    Route::get('job-costs', 'JobCostController@index');
+    Route::get('job-costs/{id}', 'JobCostController@show')->whereNumber('id');
+    Route::get('manufacturing-accounting', 'ManufacturingAccountingController@summary');
+
+    // Phase 3 — Advanced budgeting
+    Route::prefix('budget-versions')->group(function () {
+        Route::get('/', 'AdvancedBudgetController@index');
+        Route::get('create', 'AdvancedBudgetController@create');
+        Route::post('/', 'AdvancedBudgetController@store');
+        Route::get('vs-actual', 'AdvancedBudgetController@vsActual');
+        Route::get('{id}', 'AdvancedBudgetController@show')->whereNumber('id');
+        Route::post('{id}/submit', 'AdvancedBudgetController@submit')->whereNumber('id');
+        Route::post('{id}/approve', 'AdvancedBudgetController@approve')->whereNumber('id');
+        Route::post('{id}/activate', 'AdvancedBudgetController@activate')->whereNumber('id');
+        Route::post('{id}/revise', 'AdvancedBudgetController@revise')->whereNumber('id');
+    });
+
     //Settings
     Route::prefix('settings')->group(function () {
 

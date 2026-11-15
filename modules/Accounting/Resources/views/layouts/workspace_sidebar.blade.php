@@ -105,6 +105,49 @@
             <i class="bi bi-calendar3"></i> AP Ageing
         </a>
 
+        <div class="acct-ws-section">Fixed Assets</div>
+        <a href="{{ url('accounting/fixed-assets') }}" class="acct-ws-link {{ request()->is('accounting/fixed-assets*') ? 'active' : '' }}">
+            <i class="bi bi-building"></i> Asset Register
+        </a>
+        <a href="{{ url('accounting/fixed-asset-categories') }}" class="acct-ws-link {{ request()->is('accounting/fixed-asset-categories*') ? 'active' : '' }}">
+            <i class="bi bi-tags"></i> Categories
+        </a>
+        <a href="{{ url('accounting/depreciation/runs') }}" class="acct-ws-link {{ request()->is('accounting/depreciation*') ? 'active' : '' }}">
+            <i class="bi bi-graph-down"></i> Depreciation Runs
+        </a>
+        <a href="{{ url('accounting/asset-disposals') }}" class="acct-ws-link {{ request()->is('accounting/asset-disposals*') ? 'active' : '' }}">
+            <i class="bi bi-trash3"></i> Disposal
+        </a>
+
+        <div class="acct-ws-section">Loans</div>
+        <a href="{{ url('accounting/loans') }}" class="acct-ws-link {{ request()->is('accounting/loans*') ? 'active' : '' }}">
+            <i class="bi bi-bank2"></i> Loan Register
+        </a>
+
+        <div class="acct-ws-section">Cost Accounting</div>
+        <a href="{{ url('accounting/cost-centers') }}" class="acct-ws-link {{ request()->is('accounting/cost-centers*') ? 'active' : '' }}">
+            <i class="bi bi-diagram-2"></i> Cost Centers
+        </a>
+        <a href="{{ url('accounting/cost-allocations') }}" class="acct-ws-link {{ request()->is('accounting/cost-allocations*') ? 'active' : '' }}">
+            <i class="bi bi-pie-chart"></i> Allocations
+        </a>
+        <a href="{{ url('accounting/job-costs') }}" class="acct-ws-link {{ request()->is('accounting/job-costs*') ? 'active' : '' }}">
+            <i class="bi bi-clipboard-data"></i> Job Costing
+        </a>
+
+        <div class="acct-ws-section">Manufacturing Accounting</div>
+        <a href="{{ url('accounting/manufacturing-accounting') }}" class="acct-ws-link {{ request()->is('accounting/manufacturing-accounting*') ? 'active' : '' }}">
+            <i class="bi bi-gear-wide-connected"></i> Production Costing
+        </a>
+
+        <div class="acct-ws-section">Budgeting</div>
+        <a href="{{ url('accounting/budget-versions') }}" class="acct-ws-link {{ request()->is('accounting/budget-versions*') && !request()->is('accounting/budget-versions/vs-actual') ? 'active' : '' }}">
+            <i class="bi bi-collection"></i> Budget Versions
+        </a>
+        <a href="{{ url('accounting/budget-versions/vs-actual') }}" class="acct-ws-link {{ request()->is('accounting/budget-versions/vs-actual*') ? 'active' : '' }}">
+            <i class="bi bi-bar-chart-steps"></i> Budget vs Actual
+        </a>
+
         <div class="acct-ws-section">Accounting Controls</div>
         <a href="{{ url('accounting/periods') }}" class="acct-ws-link {{ request()->is('accounting/periods*') ? 'active' : '' }}">
             <i class="bi bi-lock"></i> Accounting Periods
