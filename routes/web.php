@@ -329,24 +329,10 @@ Route::middleware(['auth', 'erp.permission'])->prefix('erp')->group(function () 
     Route::post('payroll-runs/items/{payroll_run_item}/mark-paid', [PayrollRunController::class, 'markAsPaid'])->name('payroll-runs.items.mark-paid');
     Route::get('payroll-runs/{payroll_run}/payslip/{payroll_run_item}', [PayrollRunController::class, 'payslip'])->name('payroll-runs.payslip');
 
-    // Expenses (Ultimate POS style)
-    Route::get('expenses/clear-all', function () {
-        $salesPerson = 0;
-        $expenses = 0;
-        \App\Models\SalesPersonExpense::query()->orderBy('id')->chunkById(200, function ($rows) use (&$salesPerson) {
-            foreach ($rows as $row) {
-                $row->delete();
-                $salesPerson++;
-            }
-        });
-        \App\Models\Expense::query()->orderBy('id')->chunkById(200, function ($rows) use (&$expenses) {
-            foreach ($rows as $row) {
-                $row->delete();
-                $expenses++;
-            }
-        });
-
-        return response('Deleted '.$salesPerson.' sales person expenses and '.$expenses.' expenses.');
+    // Expenses — bulk wipe disabled (Phase 1): protected journals / financial history.
+    // Route name kept so bookmarks and permission probes do not 404.
+    Route::match(['get', 'post'], 'expenses/clear-all', function () {
+        abort(410, 'Bulk expense deletion is disabled to protect accounting journals. Delete expenses individually.');
     })->name('expenses.clear-all');
     Route::resource('expense-categories', ExpenseCategoryController::class)->except(['show']);
     Route::resource('expenses', ExpenseController::class)->except(['show']);

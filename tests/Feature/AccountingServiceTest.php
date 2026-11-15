@@ -317,4 +317,36 @@ class AccountingServiceTest extends TestCase
         $this->assertSame(2, DB::table('journal_entries')->where('reversed', 1)->count());
         $this->assertTrue((bool) DB::table('accounting_postings')->where('event_key', 'expense:22:entry')->value('reversed'));
     }
+
+    public function test_normalize_money_rounds_to_two_decimals(): void
+    {
+        $this->assertSame(10.13, AccountingService::normalizeMoney(10.125));
+        $this->assertSame(10.12, AccountingService::normalizeMoney(10.124));
+    }
+
+    public function test_post_entry_rejects_zero_and_negative_amounts(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        AccountingService::postEntry(1, 2, 0, '2026-08-29', 'Bad', null, 'manual_entry');
+    }
+
+    public function test_post_once_stores_rounded_amount_on_both_sides(): void
+    {
+        AccountingService::postOnce(
+            'payment:99:receipt',
+            'payment',
+            99,
+            1,
+            2,
+            10.125,
+            '2026-08-29',
+            'Rounded receipt',
+            'PAY-99',
+            'payment'
+        );
+
+        $this->assertEquals(10.13, (float) DB::table('journal_entries')->sum('debit'));
+        $this->assertEquals(10.13, (float) DB::table('journal_entries')->sum('credit'));
+        $this->assertEquals(10.13, (float) DB::table('accounting_postings')->where('event_key', 'payment:99:receipt')->value('amount'));
+    }
 }

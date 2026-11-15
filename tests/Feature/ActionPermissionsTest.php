@@ -72,7 +72,25 @@ class ActionPermissionsTest extends TestCase
         $this->put('/erp/products/999', ['name' => 'Changed'])->assertForbidden();
         $this->delete('/erp/products/999')->assertForbidden();
         $this->post('/erp/employees/bulk-delete', ['ids' => [999]])->assertForbidden();
-        $this->get('/erp/expenses/clear-all')->assertForbidden();
+        // Bulk wipe is hard-disabled (410) or blocked by permission middleware (403).
+        $clearAll = $this->get('/erp/expenses/clear-all');
+        $this->assertTrue(
+            in_array($clearAll->status(), [403, 410], true),
+            'expenses.clear-all must not delete data (got '.$clearAll->status().')'
+        );
+    }
+
+    public function test_expenses_clear_all_is_disabled_even_for_privileged_users(): void
+    {
+        $this->actingAs($this->userWithPermissions([
+            'expenses.view',
+            'expenses.create',
+            'expenses.edit',
+            'expenses.delete',
+        ]));
+
+        $this->get('/erp/expenses/clear-all')->assertStatus(410);
+        $this->post('/erp/expenses/clear-all')->assertStatus(410);
     }
 
     public function test_explicit_permissions_pass_the_web_and_erp_checks(): void

@@ -70,6 +70,23 @@ class AccountingService
     }
 
     /**
+     * Normalize money to 2 decimal places (LKR). Rejects non-numeric / non-positive values.
+     */
+    public static function normalizeMoney(float|int|string $amount): float
+    {
+        if (! is_numeric($amount)) {
+            throw new RuntimeException('Journal amount must be numeric.');
+        }
+
+        $normalized = round((float) $amount, 2);
+        if ($normalized <= 0) {
+            throw new RuntimeException('Journal amount must be greater than zero.');
+        }
+
+        return $normalized;
+    }
+
+    /**
      * Post a balanced pair of journal entries.
      *
      * @param int         $debitAccountId   chart_of_accounts.id for the DEBIT side
@@ -93,9 +110,7 @@ class AccountingService
         string $transactionType = 'manual_entry',
         array  $extra = []
     ): string {
-        if ($amount <= 0) {
-            throw new RuntimeException('Journal amount must be greater than zero.');
-        }
+        $amount = self::normalizeMoney($amount);
         if ($debitAccountId === $creditAccountId) {
             throw new RuntimeException('Debit and credit accounts must be different.');
         }
@@ -168,6 +183,8 @@ class AccountingService
         string $transactionType,
         array $extra = []
     ): string {
+        $amount = self::normalizeMoney($amount);
+
         return DB::transaction(function () use (
             $eventKey,
             $sourceType,
