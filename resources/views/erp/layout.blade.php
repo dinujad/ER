@@ -706,11 +706,18 @@
                     </li>
                     @endif
 
-                    {{-- Accounting --}}
+                    {{-- Accounting → dedicated workspace (no right-side submenu) --}}
                     @if($u->can_access('accounting.view'))
                     <li class="nav-item mt-2">
-                        <a href="{{ url('accounting/dashboard') }}" class="nav-link {{ request()->is('accounting*', 'report/accounting*') ? 'active' : '' }}">
+                        <a href="{{ url('accounting/dashboard') }}"
+                           class="nav-link {{ request()->is('accounting*', 'report/accounting*') ? 'active' : '' }}"
+                           title="Open Accounting Workspace">
                             <i class="bi bi-journal-bookmark-fill me-2"></i> Accounting
+                        </a>
+                        <a href="{{ url('accounting/dashboard') }}" target="_blank" rel="noopener"
+                           class="nav-link py-1 small text-white-50 ms-4"
+                           title="Open Accounting in a new tab">
+                            <i class="bi bi-box-arrow-up-right me-1"></i> Open in new tab
                         </a>
                     </li>
                     @endif

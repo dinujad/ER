@@ -4,6 +4,10 @@ use Illuminate\Support\Facades\Route;
 
 Route::group(['middleware' => ['web', 'auth', 'accounting.session', 'accounting.access'], 'prefix' => 'accounting', 'namespace' => 'Modules\Accounting\Http\Controllers'], function () {
 
+    Route::get('/', function () {
+        return redirect('accounting/dashboard');
+    });
+
     Route::get('/install', 'InstallController@index');
     Route::post('/install', 'InstallController@install');
     Route::get('/install/uninstall', 'InstallController@uninstall');

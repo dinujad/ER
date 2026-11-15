@@ -1,266 +1,164 @@
 @extends('accounting::layouts.app')
-@section('title', __('accounting::lang.accounting') . ' ' . __('business.dashboard'))
+@section('title', 'Accounting Overview')
 
 @section('content')
-    @include('accounting::layouts.nav')
-    <!-- Content Header (Page header) -->
-    <section class="content-header no-print">
-        <h1>
-            @lang('accounting::lang.accounting')
-            <small>@lang('business.dashboard')</small>
-        </h1>
-    </section>
-    <!-- Main content -->
-    <section class="content no-print">
+@php
+    $fmt = function ($value) {
+        if ($value === null) {
+            return 'Not available';
+        }
+        return 'LKR ' . number_format((float) $value, 2);
+    };
+@endphp
 
-        <div class="row">
-
-            <!-- ./col -->
-            <div class="col-lg-4 col-xs-6">
-                <!-- small box -->
-                <div class="small-box bg-red">
-                    <div class="inner">
-                        <h4><strong><span class="no_charts_of_account">&nbsp;</span></strong></h4>
-                        <p>{{ __('accounting::lang.charts_of_accounts') }}</p>
-                    </div>
-                    <div class="icon">
-                        <i class="ion ion-pie-graph"></i>
-                    </div>
-                    <a href="{{ url('accounting/chart_of_account') }}" class="small-box-footer">@lang('accounting::lang.more_info') <i
-                            class="fa fa-arrow-circle-right"></i></a>
-                </div>
-            </div>
-            <!-- ./col -->
-
-            <div class="col-lg-4 col-xs-6">
-                <!-- small box -->
-                <div class="small-box bg-aqua">
-                    <div class="inner">
-                        <h4><strong><span class="no_journal_entries">&nbsp;</span></strong></h4>
-                        <p>{{ __('accounting::lang.journal_of_entries') }}</p>
-                    </div>
-                    <div class="icon">
-                        <i class="ion ion-stats-bars"></i>
-                    </div>
-                    <a href="{{ url('accounting/journal_entry') }}" class="small-box-footer">@lang('accounting::lang.more_info') <i
-                            class="fa fa-arrow-circle-right"></i></a>
-                </div>
-            </div>
-            <!-- ./col -->
-
-
-            <!-- /.col -->
-            @php
-                $accounting_transactions_index_page = get_accounting_transactions_index();
-            @endphp
-            @if (!empty($accounting_transactions_index_page))
-                <div class="col-lg-4 col-xs-6">
-                    <div class="small-box bg-green">
-                        <div class="inner">
-                            <h4><strong><span class="all_transactions">&nbsp;</span></strong></h4>
-                            <p>{{ __('accounting::lang.list_of_all_transactions') }}</p>
-                        </div>
-                        <div class="icon">
-                            <i class="ion ion-stats-bars"></i>
-                        </div>
-                        <a href="{{ url($accounting_transactions_index_page) }}" class="small-box-footer">@lang('accounting::lang.more_info')<i
-                                class="fa fa-arrow-circle-right"></i></a>
-                    </div>
-                </div>
-            @endif
-            <!-- ./col -->
-
-            {{-- <div class="col-lg-4 col-xs-6">
-                <!-- small box -->
-                <div class="small-box bg-yellow">
-                    <div class="inner">
-                        <h4><strong><span class="">&nbsp;</span></strong></h4>
-                        <p>{{ __('accounting::lang.transfer') }}</p>
-                    </div>
-                    <div class="icon">
-                        <i class="ion ion-person-add"></i>
-                    </div>
-                    <a href="#" class="small-box-footer">@lang('accounting::lang.more_info') <i class="fa fa-arrow-circle-right"></i></a>
-                </div>
-            </div> --}}
-            <!-- ./col -->
-
-            <!-- ./col -->
-            {{-- <div class="col-lg-4 col-xs-6">
-                <!-- small box -->
-                <div class="small-box bg-red">
-                    <div class="inner">
-                        <h4><strong><span class="">&nbsp;</span></strong></h4>
-                        <p>{{ __('accounting::lang.total_profit_loss') }}</p>
-                    </div>
-                    <div class="icon">
-                        <i class="ion ion-pie-graph"></i>
-                    </div>
-                    <a href="#" class="small-box-footer">@lang('accounting::lang.more_info') <i class="fa fa-arrow-circle-right"></i></a>
-                </div>
-            </div> --}}
-            <!-- ./col -->
-
-
-            {{-- <div class="col-lg-4 col-xs-6">
-                <!-- small box -->
-                <div class="small-box bg-aqua">
-                    <div class="inner">
-                        <h4><strong><span>&nbsp;</span></strong></h4>
-                        <p>{{ __('accounting::lang.total_expense') }}</p>
-                    </div>
-                    <div class="icon">
-                        <i class="ion ion-stats-bars"></i>
-                    </div>
-                    <a href="{{ action('ExpenseController@index') }}" class="small-box-footer">
-                        @lang('accounting::lang.more_info') <i class="fa fa-arrow-circle-right"></i>
-                    </a>
-                </div>
-            </div> --}}
-            <!-- ./col -->
-
-
-            <!-- /.col -->
-
-            {{-- <div class="col-lg-4 col-xs-6">
-                <div class="small-box bg-green">
-                    <div class="inner">
-                        <h4><strong><span class="total_income">&nbsp;</span></strong></h4>
-                        <p>{{ __('accounting::lang.total_incomes') }}</p>
-                    </div>
-                    <div class="icon">
-                        <i class="ion ion-stats-bars"></i>
-                    </div>
-                    <a href="{{ action('IncomeController@index') }}" class="small-box-footer">@lang('accounting::lang.more_info')<i class="fa fa-arrow-circle-right"></i></a>
-                </div>
-            </div> --}}
-            <!-- ./col -->
-
-            {{-- <div class="col-lg-4 col-xs-6">
-                <!-- small box -->
-                <div class="small-box bg-yellow">
-                    <div class="inner">
-                        <h4><strong><span class="">&nbsp;</span></strong></h4>
-                        <p>{{ __('accounting::lang.total_cash_flow') }}</p>
-                    </div>
-                    <div class="icon">
-                        <i class="ion ion-person-add"></i>
-                    </div>
-                    <a href="#" class="small-box-footer">@lang('accounting::lang.more_info') <i class="fa fa-arrow-circle-right"></i></a>
-                </div>
-            </div> --}}
-            <!-- ./col -->
-
-
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+    <div>
+        <h2 class="h4 mb-1" style="font-family:'IBM Plex Sans',sans-serif;font-weight:700">Accounting Overview</h2>
+        <p class="text-muted mb-0 small">Balances from posted journal entries · currency LKR</p>
+    </div>
+    <form method="GET" action="{{ url('accounting/dashboard') }}" class="row g-2 align-items-end">
+        <div class="col-auto">
+            <label class="form-label small mb-0">From</label>
+            <input type="date" name="start_date" class="form-control form-control-sm" value="{{ $start_date }}">
         </div>
-
-        <div class="row">
-            <div class="col-md-12">
-                @component('accounting::components.box')
-                    @slot('title')
-                        {{ trans('lang_v1.balance') }} {{ trans('accounting::lang.by') }}
-                        {{ trans('account.account_type') }}
-                    @endslot
-
-                    @slot('body')
-                        <div class="col-md-6">
-                            <table class="table table-striped table-condensed table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>
-                                            {{ trans_choice('accounting::lang.account', 1) }} {{ trans_choice('accounting::lang.type', 1) }}
-                                        </th>
-                                        <th>
-                                            {{ trans('accounting::lang.current') }}
-                                            {{ trans_choice('accounting::lang.balance', 1) }}
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($account_types as $account_type)
-                                        <tr>
-                                            <td>
-                                                <span>{{ trans_choice('accounting::general.' . $account_type, 1) }}</span>
-                                            </td>
-
-                                            <td>
-                                                <span>{{ currency_code() }}
-                                                    {{ $chart_of_accounts->where('account_type', $account_type)->sum('current_balance') }}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div class="col-md-6">
-                            <canvas id="balance_summary_chart"></canvas>
-                        </div>
-                    @endslot
-                @endcomponent
-            </div>
-
+        <div class="col-auto">
+            <label class="form-label small mb-0">To</label>
+            <input type="date" name="end_date" class="form-control form-control-sm" value="{{ $end_date }}">
         </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+        </div>
+    </form>
+</div>
 
-        <div class="row">
-            <div class="col-md-12">
-                @component('accounting::components.widget', ['class' => 'box-primary'])
-                    {!! $expense_chart->container() !!}
-                @endcomponent
+@unless($summary['available'])
+    <div class="alert alert-warning border-0 shadow-sm">
+        Chart of accounts / journals are not ready yet. Seed COA and post activity, then refresh.
+        Quick links:
+        <a href="{{ url('accounting/chart_of_account') }}">Chart of Accounts</a> ·
+        <a href="{{ url('accounting/journal_entry') }}">Journal Entries</a>
+    </div>
+@endunless
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="acct-card h-100">
+            <div class="acct-card-body">
+                <div class="text-muted small text-uppercase">Revenue (period)</div>
+                <div class="fs-5 fw-bold mt-1">{{ $fmt($summary['revenue']) }}</div>
             </div>
         </div>
-
-        <div class="row">
-            <div class="col-md-6">
-                @component('accounting::components.widget', ['class' => 'box-primary'])
-                    {!! $current_financial_year_chart->container() !!}
-                @endcomponent
-            </div>
-            <div class="col-md-6">
-                @component('accounting::components.widget', ['class' => 'box-primary'])
-                    {!! $last_30_days_financial_year_chart->container() !!}
-                @endcomponent
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="acct-card h-100">
+            <div class="acct-card-body">
+                <div class="text-muted small text-uppercase">Expenses (period)</div>
+                <div class="fs-5 fw-bold mt-1">{{ $fmt($summary['expenses']) }}</div>
             </div>
         </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="acct-card h-100">
+            <div class="acct-card-body">
+                <div class="text-muted small text-uppercase">Net profit (period)</div>
+                <div class="fs-5 fw-bold mt-1 {{ ($summary['net_profit'] ?? 0) >= 0 ? 'text-success' : 'text-danger' }}">
+                    {{ $fmt($summary['net_profit']) }}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="acct-card h-100">
+            <div class="acct-card-body">
+                <div class="text-muted small text-uppercase">Cash balance</div>
+                <div class="fs-5 fw-bold mt-1">{{ $fmt($summary['cash']) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="acct-card h-100">
+            <div class="acct-card-body">
+                <div class="text-muted small text-uppercase">Bank balance</div>
+                <div class="fs-5 fw-bold mt-1">{{ $fmt($summary['bank']) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="acct-card h-100">
+            <div class="acct-card-body">
+                <div class="text-muted small text-uppercase">Accounts receivable</div>
+                <div class="fs-5 fw-bold mt-1">{{ $fmt($summary['receivables']) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="acct-card h-100">
+            <div class="acct-card-body">
+                <div class="text-muted small text-uppercase">Accounts payable</div>
+                <div class="fs-5 fw-bold mt-1">{{ $fmt($summary['payables']) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="acct-card h-100">
+            <div class="acct-card-body">
+                <div class="text-muted small text-uppercase">Catalogue</div>
+                <div class="mt-1"><strong>{{ number_format($counts['accounts']) }}</strong> accounts</div>
+                <div class="text-muted small">{{ number_format($counts['journal_lines']) }} journal lines</div>
+            </div>
+        </div>
+    </div>
+</div>
 
-    </section>
-
-
-@stop
-
-@section('javascript')
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="{{ Module::asset('accounting:js/accounting.js') }}"></script>
-    <script src="{{ asset('js/report.js?v=' . $asset_v) }}"></script>
-    {!! $expense_chart->script() !!}
-    {!! $current_financial_year_chart->script() !!}
-    {!! $last_30_days_financial_year_chart->script() !!}
-    <script>
-        const data = {
-            labels: {!! $balance_summary_chart->labels !!},
-            datasets: [{
-                label: 'My First Dataset',
-                data: {!! $balance_summary_chart->values !!},
-                backgroundColor: [
-                    'rgb(255, 99, 132)',
-                    'rgb(54, 162, 235)',
-                    'rgb(255, 205, 86)',
-                    '#00a65a',
-                    '#605ca8',
-                ],
-                hoverOffset: 4
-            }],
-        };
-
-        const config = {
-            type: 'pie',
-            data: data,
-        };
-
-        const myChart = new Chart(
-            document.getElementById('balance_summary_chart'),
-            config
-        );
-    </script>
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="acct-card">
+            <div class="acct-card-head">
+                <h6 class="mb-0">Recent journal lines</h6>
+                <a href="{{ url('accounting/journal_entry') }}" class="btn btn-sm btn-outline-secondary">Open journals</a>
+            </div>
+            <div class="table-responsive">
+                <table class="acct-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Txn</th>
+                            <th>Account</th>
+                            <th>Description</th>
+                            <th class="text-end">Debit</th>
+                            <th class="text-end">Credit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($summary['recent'] as $row)
+                            <tr>
+                                <td>{{ $row['date'] }}</td>
+                                <td><span class="txn-num">{{ $row['transaction_number'] }}</span></td>
+                                <td>{{ $row['account_name'] ?: '—' }}</td>
+                                <td>{{ $row['name'] ?: ($row['transaction_type'] ?: '—') }}</td>
+                                <td class="text-end">{{ $row['debit'] > 0 ? number_format($row['debit'], 2) : '—' }}</td>
+                                <td class="text-end">{{ $row['credit'] > 0 ? number_format($row['credit'], 2) : '—' }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="6" class="text-center text-muted py-4">No journal lines yet.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="acct-card">
+            <div class="acct-card-head"><h6 class="mb-0">Quick reports</h6></div>
+            <div class="acct-card-body d-grid gap-2">
+                <a class="btn btn-outline-primary text-start" href="{{ url('report/accounting/profit_and_loss') }}"><i class="bi bi-graph-up me-2"></i>Profit &amp; Loss</a>
+                <a class="btn btn-outline-primary text-start" href="{{ url('report/accounting/balance_sheet') }}"><i class="bi bi-pie-chart me-2"></i>Balance Sheet</a>
+                <a class="btn btn-outline-primary text-start" href="{{ url('report/accounting/trial_balance') }}"><i class="bi bi-list-check me-2"></i>Trial Balance</a>
+                <a class="btn btn-outline-primary text-start" href="{{ url('report/accounting/accounts_receivable_ageing_summary') }}"><i class="bi bi-people me-2"></i>AR Ageing</a>
+                <a class="btn btn-outline-primary text-start" href="{{ url('report/accounting/accounts_payable_ageing_summary') }}"><i class="bi bi-building me-2"></i>AP Ageing</a>
+                <a class="btn btn-outline-secondary text-start" href="{{ url('accounting/transactions/sales') }}"><i class="bi bi-arrow-left-right me-2"></i>ERP Transactions</a>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
