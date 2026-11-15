@@ -80,6 +80,10 @@ class FixedAssetController extends Controller
             'useful_life_months' => 'nullable|integer|min:1',
             'depreciation_method' => 'nullable|in:straight_line,declining_balance,none',
             'cost_center_id' => 'nullable|integer',
+            'supplier_id' => 'nullable|integer',
+            'purchase_reference' => 'nullable|string|max:120',
+            'purchase_id' => 'nullable|integer',
+            'purchase_item_id' => 'nullable|integer',
         ]);
 
         try {
@@ -94,7 +98,7 @@ class FixedAssetController extends Controller
 
     public function show($id)
     {
-        $asset = FaAsset::with(['category', 'events', 'depreciationSchedules', 'disposal'])->findOrFail($id);
+        $asset = FaAsset::with(['category', 'events', 'depreciationSchedules', 'disposal', 'attachments'])->findOrFail($id);
 
         return view('accounting::phase3.fixed_assets.show', compact('asset'));
     }
@@ -134,6 +138,10 @@ class FixedAssetController extends Controller
             'useful_life_months' => 'nullable|integer|min:1',
             'depreciation_method' => 'nullable|in:straight_line,declining_balance,none',
             'cost_center_id' => 'nullable|integer',
+            'supplier_id' => 'nullable|integer',
+            'purchase_reference' => 'nullable|string|max:120',
+            'purchase_id' => 'nullable|integer',
+            'purchase_item_id' => 'nullable|integer',
         ]);
 
         $before = $asset->toArray();

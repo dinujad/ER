@@ -118,6 +118,12 @@
         <a href="{{ url('accounting/asset-disposals') }}" class="acct-ws-link {{ request()->is('accounting/asset-disposals*') ? 'active' : '' }}">
             <i class="bi bi-trash3"></i> Disposal
         </a>
+        <a href="{{ url('accounting/purchase-capitalization') }}" class="acct-ws-link {{ request()->is('accounting/purchase-capitalization*') ? 'active' : '' }}">
+            <i class="bi bi-bag-check"></i> Purchase-linked Assets
+        </a>
+        <a href="{{ url('accounting/fixed-assets/reports/register/pdf') }}" class="acct-ws-link {{ request()->is('accounting/fixed-assets/reports*') ? 'active' : '' }}">
+            <i class="bi bi-file-earmark-spreadsheet"></i> Asset Reports
+        </a>
 
         <div class="acct-ws-section">Loans</div>
         <a href="{{ url('accounting/loans') }}" class="acct-ws-link {{ request()->is('accounting/loans*') ? 'active' : '' }}">
@@ -131,6 +137,9 @@
         <a href="{{ url('accounting/cost-allocations') }}" class="acct-ws-link {{ request()->is('accounting/cost-allocations*') ? 'active' : '' }}">
             <i class="bi bi-pie-chart"></i> Allocations
         </a>
+        <a href="{{ url('accounting/cost-center-reports/profit-and-loss') }}" class="acct-ws-link {{ request()->is('accounting/cost-center-reports*') ? 'active' : '' }}">
+            <i class="bi bi-bar-chart"></i> CC P&amp;L
+        </a>
         <a href="{{ url('accounting/job-costs') }}" class="acct-ws-link {{ request()->is('accounting/job-costs*') ? 'active' : '' }}">
             <i class="bi bi-clipboard-data"></i> Job Costing
         </a>
@@ -138,6 +147,9 @@
         <div class="acct-ws-section">Manufacturing Accounting</div>
         <a href="{{ url('accounting/manufacturing-accounting') }}" class="acct-ws-link {{ request()->is('accounting/manufacturing-accounting*') ? 'active' : '' }}">
             <i class="bi bi-gear-wide-connected"></i> Production Costing
+        </a>
+        <a href="{{ url('accounting/manufacturing-overhead/rules') }}" class="acct-ws-link {{ request()->is('accounting/manufacturing-overhead*') ? 'active' : '' }}">
+            <i class="bi bi-sliders"></i> Overhead Rules
         </a>
 
         <div class="acct-ws-section">Budgeting</div>

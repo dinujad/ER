@@ -39,6 +39,7 @@ class AccountingService
     public const GL_TRANSPORT_EXPENSE = '6300';
     public const GL_OTHER_EXPENSE    = '6900';
     public const GL_FIXED_ASSETS            = '1400';
+    public const GL_FA_CLEARING             = '1410';
     public const GL_ACCUMULATED_DEPRECIATION = '1450';
     public const GL_PPE_EQUIPMENT           = '1500';
     public const GL_LOANS_PAYABLE           = '2200';

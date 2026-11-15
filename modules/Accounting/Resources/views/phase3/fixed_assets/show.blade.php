@@ -44,6 +44,27 @@
     <div class="col-auto"><button class="btn btn-sm btn-outline-secondary">Transfer</button></div>
 </form>
 @endif
+<h2 class="h6 mt-4">Documents</h2>
+<div class="d-flex flex-wrap gap-2 mb-2">
+    <a class="btn btn-sm btn-outline-secondary" href="{{ url('accounting/fixed-assets/'.$asset->id.'/reports/history/pdf') }}">History PDF</a>
+    <a class="btn btn-sm btn-outline-secondary" href="{{ url('accounting/fixed-assets/'.$asset->id.'/reports/depreciation/xlsx') }}">Schedule Excel</a>
+</div>
+<form method="post" action="{{ url('accounting/fixed-assets/'.$asset->id.'/attachments') }}" enctype="multipart/form-data" class="row g-2 mb-3">@csrf
+    <div class="col-md-4"><input type="file" name="file" class="form-control form-control-sm" required></div>
+    <div class="col-md-3"><input type="text" name="document_type" class="form-control form-control-sm" placeholder="Type"></div>
+    <div class="col-md-3"><input type="text" name="description" class="form-control form-control-sm" placeholder="Description"></div>
+    <div class="col-auto"><button class="btn btn-sm btn-primary">Upload</button></div>
+</form>
+@if(isset($asset->attachments) && $asset->attachments->isNotEmpty())
+<table class="table table-sm"><thead><tr><th>File</th><th>Type</th><th></th></tr></thead><tbody>
+@foreach($asset->attachments as $att)
+<tr><td>{{ $att->original_name }}</td><td>{{ $att->document_type }}</td>
+<td class="text-end">
+<a href="{{ url('accounting/fixed-assets/'.$asset->id.'/attachments/'.$att->id.'/download') }}">Download</a>
+</td></tr>
+@endforeach
+</tbody></table>
+@endif
 @if($asset->events->isNotEmpty())
 <h2 class="h6">Event history</h2>
 <table class="table table-sm"><thead><tr><th>Date</th><th>Type</th><th>Description</th></tr></thead><tbody>

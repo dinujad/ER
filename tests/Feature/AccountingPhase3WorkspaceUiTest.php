@@ -182,6 +182,11 @@ class AccountingPhase3WorkspaceUiTest extends TestCase
             'accounting/manufacturing-accounting',
             'accounting/budget-versions',
             'accounting/budget-versions/vs-actual',
+            'accounting/purchase-capitalization',
+            'accounting/cost-center-reports/profit-and-loss',
+            'accounting/manufacturing-overhead/rules',
+            'accounting/manufacturing-overhead/allocation',
+            'accounting/manufacturing-overhead/history',
         ];
     }
 

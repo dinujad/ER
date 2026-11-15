@@ -133,6 +133,10 @@ class AccountingPhase3CoreTest extends TestCase
             $table->date('purchase_date')->nullable();
             $table->date('acquisition_date')->nullable();
             $table->date('in_service_date')->nullable();
+            $table->unsignedBigInteger('supplier_id')->nullable();
+            $table->string('purchase_reference', 120)->nullable();
+            $table->unsignedBigInteger('purchase_id')->nullable();
+            $table->unsignedBigInteger('purchase_item_id')->nullable();
             $table->decimal('asset_cost', 20, 4)->default(0);
             $table->decimal('capitalized_costs', 20, 4)->default(0);
             $table->decimal('salvage_value', 20, 4)->default(0);

@@ -12,9 +12,12 @@ class PurchaseItem extends Model
     protected $fillable = [
         'purchase_id', 'material_id', 'batch_no', 'expiry_date', 'unit',
         'quantity', 'quantity_returned', 'buy_price', 'sell_price', 'discount', 'discount_type', 'tax_amount', 'line_total',
+        'is_fixed_asset', 'fa_category_id', 'fa_useful_life_months', 'fa_depreciation_method',
+        'fa_salvage_value', 'fa_in_service_date', 'fa_cost_center_id',
     ];
 
     protected $casts = [
+        'is_fixed_asset' => 'boolean',
         'expiry_date' => 'date',
         'quantity' => 'decimal:2',
         'quantity_returned' => 'decimal:2',

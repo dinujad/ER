@@ -162,6 +162,8 @@ Route::group(['middleware' => ['web', 'auth', 'accounting.session', 'accounting.
         Route::get('/', 'FixedAssetController@index');
         Route::get('create', 'FixedAssetController@create');
         Route::post('/', 'FixedAssetController@store');
+        Route::get('reports/register/{format?}', 'FixedAssetExportController@register')->where('format', 'pdf|xlsx|xls|csv');
+        Route::get('reports/disposals/{format?}', 'FixedAssetExportController@disposals')->where('format', 'pdf|xlsx|xls|csv');
         Route::get('{id}', 'FixedAssetController@show')->whereNumber('id');
         Route::get('{id}/edit', 'FixedAssetController@edit')->whereNumber('id');
         Route::post('{id}', 'FixedAssetController@update')->whereNumber('id');
@@ -170,6 +172,17 @@ Route::group(['middleware' => ['web', 'auth', 'accounting.session', 'accounting.
         Route::post('{id}/capitalize', 'FixedAssetController@capitalize')->whereNumber('id');
         Route::post('{id}/transfer', 'FixedAssetController@transfer')->whereNumber('id');
         Route::post('{id}/deactivate', 'FixedAssetController@deactivate')->whereNumber('id');
+        Route::post('{id}/attachments', 'FixedAssetAttachmentController@store')->whereNumber('id');
+        Route::get('{id}/attachments/{attachmentId}/download', 'FixedAssetAttachmentController@download')->whereNumber('id');
+        Route::delete('{id}/attachments/{attachmentId}', 'FixedAssetAttachmentController@destroy')->whereNumber('id');
+        Route::get('{id}/reports/depreciation/{format?}', 'FixedAssetExportController@depreciationSchedule')->whereNumber('id')->where('format', 'pdf|xlsx|xls|csv');
+        Route::get('{id}/reports/history/{format?}', 'FixedAssetExportController@history')->whereNumber('id')->where('format', 'pdf|xlsx|xls|csv');
+    });
+    Route::prefix('purchase-capitalization')->group(function () {
+        Route::get('/', 'PurchaseCapitalizationController@index');
+        Route::get('{id}', 'PurchaseCapitalizationController@show')->whereNumber('id');
+        Route::post('{id}/approve', 'PurchaseCapitalizationController@approve')->whereNumber('id');
+        Route::post('{id}/capitalize', 'PurchaseCapitalizationController@capitalize')->whereNumber('id');
     });
     Route::prefix('fixed-asset-categories')->group(function () {
         Route::get('/', 'FixedAssetCategoryController@index');
@@ -217,6 +230,23 @@ Route::group(['middleware' => ['web', 'auth', 'accounting.session', 'accounting.
     Route::get('job-costs', 'JobCostController@index');
     Route::get('job-costs/{id}', 'JobCostController@show')->whereNumber('id');
     Route::get('manufacturing-accounting', 'ManufacturingAccountingController@summary');
+    Route::prefix('manufacturing-overhead')->group(function () {
+        Route::get('rules', 'ManufacturingOverheadController@rulesIndex');
+        Route::get('rules/create', 'ManufacturingOverheadController@rulesCreate');
+        Route::post('rules', 'ManufacturingOverheadController@rulesStore');
+        Route::post('rules/{id}/approve', 'ManufacturingOverheadController@approveRule')->whereNumber('id');
+        Route::post('rules/{id}/activate', 'ManufacturingOverheadController@activateRule')->whereNumber('id');
+        Route::get('allocation', 'ManufacturingOverheadController@allocationForm');
+        Route::post('allocation/preview', 'ManufacturingOverheadController@preview');
+        Route::post('runs/{id}/post', 'ManufacturingOverheadController@postRun')->whereNumber('id');
+        Route::post('runs/{id}/reverse', 'ManufacturingOverheadController@reverseRun')->whereNumber('id');
+        Route::get('history', 'ManufacturingOverheadController@history');
+    });
+    Route::prefix('cost-center-reports')->group(function () {
+        Route::get('profit-and-loss', 'CostCenterReportController@profitAndLoss');
+        Route::get('profit-and-loss/{format}', 'CostCenterReportController@profitAndLossExport')->where('format', 'pdf|xlsx|xls|csv');
+        Route::get('journals', 'CostCenterReportController@journals');
+    });
 
     // Phase 3 — Advanced budgeting
     Route::prefix('budget-versions')->group(function () {

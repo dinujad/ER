@@ -14,7 +14,7 @@ class FaAsset extends Model
     protected $fillable = [
         'business_id', 'category_id', 'asset_code', 'name', 'description',
         'purchase_date', 'acquisition_date', 'in_service_date',
-        'supplier_id', 'purchase_reference',
+        'supplier_id', 'purchase_reference', 'purchase_id', 'purchase_item_id',
         'asset_cost', 'capitalized_costs', 'salvage_value',
         'useful_life_months', 'depreciation_method',
         'accumulated_depreciation', 'net_book_value', 'status',
@@ -54,6 +54,11 @@ class FaAsset extends Model
     public function disposal(): HasOne
     {
         return $this->hasOne(FaDisposal::class, 'asset_id');
+    }
+
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(FaAssetAttachment::class, 'asset_id');
     }
 
     public function totalCapitalizedCost(): float

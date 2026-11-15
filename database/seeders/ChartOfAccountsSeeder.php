@@ -98,6 +98,13 @@ class ChartOfAccountsSeeder extends Seeder
                 'allow_manual'      => 1,
             ],
             [
+                'gl_code'           => '1410',
+                'name'              => 'Fixed Asset Clearing',
+                'account_type'      => 'asset',
+                'account_subtype_id'=> $subtypeId('asset', 'Current Assets'),
+                'allow_manual'      => 1,
+            ],
+            [
                 'gl_code'           => '1450',
                 'name'              => 'Accumulated Depreciation',
                 'account_type'      => 'asset',

@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\Purchase;
 use App\Models\PurchasePayment;
+use App\Services\Accounting\PurchaseAssetCapitalizationService;
 use App\Services\AccountingService;
 use Illuminate\Support\Facades\Log;
 
@@ -87,39 +88,78 @@ class PurchaseObserver
     private function postPurchaseEntries(Purchase $purchase): void
     {
         try {
+            $purchase->loadMissing('items');
+
             $inventoryId = AccountingService::accountId(AccountingService::GL_RAW_MATERIALS);
             $payableId = AccountingService::accountId(AccountingService::GL_ACCOUNTS_PAY);
+            $clearingId = AccountingService::accountId(AccountingService::GL_FA_CLEARING);
 
             if (! $inventoryId || ! $payableId) {
                 Log::warning('PurchaseObserver: chart of accounts not seeded yet');
                 return;
             }
 
-            $amount = (float) $purchase->total;
+            $amount = AccountingService::normalizeMoney((float) $purchase->total);
             if ($amount <= 0) {
                 return;
             }
+
+            $assetSum = 0.0;
+            foreach ($purchase->items as $item) {
+                if ((bool) ($item->is_fixed_asset ?? false)) {
+                    $assetSum = round($assetSum + (float) ($item->line_total ?? 0), 2);
+                }
+            }
+            // Do not call normalizeMoney(0) — zero asset portion is valid for normal purchases.
+            if ($assetSum > 0) {
+                $assetSum = AccountingService::normalizeMoney($assetSum);
+            }
+            $inventoryRemainder = round(max(0, $amount - $assetSum), 2);
+            $inventorySum = $inventoryRemainder > 0
+                ? AccountingService::normalizeMoney($inventoryRemainder)
+                : 0.0;
 
             $supplierName = $purchase->supplier?->name ?? 'Supplier';
             $date = $purchase->date instanceof \DateTimeInterface
                 ? $purchase->date->format('Y-m-d')
                 : ($purchase->date ? (string) $purchase->date : now()->toDateString());
             $reference = $purchase->purchase_no ?? $purchase->reference_no ?? "PO-{$purchase->id}";
+            $eventKey = $this->purchaseEventKey($purchase->id);
 
-            $txn = AccountingService::postOnce(
-                $this->purchaseEventKey($purchase->id),
-                Purchase::class,
-                (int) $purchase->id,
-                $inventoryId,
-                $payableId,
-                $amount,
-                $date,
-                "Purchase – {$supplierName}",
-                $reference,
-                'purchase'
-            );
+            if ($assetSum > 0 && $clearingId) {
+                $lines = [];
+                if ($inventorySum > 0) {
+                    $lines[] = ['account_id' => $inventoryId, 'debit' => $inventorySum, 'credit' => 0, 'memo' => 'Raw materials'];
+                }
+                $lines[] = ['account_id' => $clearingId, 'debit' => $assetSum, 'credit' => 0, 'memo' => 'Fixed asset clearing'];
+                $lines[] = ['account_id' => $payableId, 'debit' => 0, 'credit' => $amount, 'memo' => 'Accounts payable'];
+
+                $txn = AccountingService::postMultiLine(
+                    $lines,
+                    $date,
+                    "Purchase – {$supplierName}",
+                    $reference,
+                    'purchase',
+                    ['source_type' => Purchase::class, 'source_id' => (int) $purchase->id],
+                    $eventKey
+                );
+            } else {
+                $txn = AccountingService::postOnce(
+                    $eventKey,
+                    Purchase::class,
+                    (int) $purchase->id,
+                    $inventoryId,
+                    $payableId,
+                    $amount,
+                    $date,
+                    "Purchase – {$supplierName}",
+                    $reference,
+                    'purchase'
+                );
+            }
 
             $purchase->updateQuietly(['accounting_txn_number' => $txn]);
+            PurchaseAssetCapitalizationService::syncCandidatesFromPurchase($purchase->fresh(['items']));
         } catch (\Throwable $e) {
             Log::error('PurchaseObserver: failed to post journal entry', [
                 'purchase_id' => $purchase->id,
@@ -187,6 +227,7 @@ class PurchaseObserver
     private function reversePurchaseEntries(int $purchaseId): void
     {
         AccountingService::reverseEvent($this->purchaseEventKey($purchaseId));
+        PurchaseAssetCapitalizationService::cancelOpenForPurchase($purchaseId);
         AccountingService::reverseEvent("purchase:{$purchaseId}:initial-payment");
 
         PurchasePayment::query()
