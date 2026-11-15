@@ -277,6 +277,43 @@ Route::group(['middleware' => ['web', 'auth', 'accounting.session', 'accounting.
         Route::post('scheduled-reports', 'ScheduledReportController@store');
     });
 
+    // Phase 5 — AI, OCR, anomalies, insights, automation, review
+    Route::prefix('phase5')->group(function () {
+        Route::get('assistant', 'AiAssistantController@index');
+        Route::post('assistant', 'AiAssistantController@ask');
+        Route::get('assistant/conversations/{id}', 'AiAssistantController@show')->whereNumber('id');
+
+        Route::get('ocr', 'OcrDocumentController@index');
+        Route::post('ocr', 'OcrDocumentController@store');
+        Route::get('ocr/{id}', 'OcrDocumentController@show')->whereNumber('id');
+        Route::post('ocr/{id}/process', 'OcrDocumentController@process')->whereNumber('id');
+        Route::post('ocr/{id}/draft', 'OcrDocumentController@createDraft')->whereNumber('id');
+        Route::get('ocr/{id}/download', 'OcrDocumentController@download')->whereNumber('id');
+
+        Route::get('categorization', 'CategorizationController@index');
+        Route::post('categorization', 'CategorizationController@suggest');
+        Route::post('categorization/{id}/decide', 'CategorizationController@decide')->whereNumber('id');
+
+        Route::get('alerts', 'AnomalyAlertController@index');
+        Route::post('alerts/run', 'AnomalyAlertController@run');
+        Route::post('alerts/{id}/status', 'AnomalyAlertController@updateStatus')->whereNumber('id');
+
+        Route::get('insights', 'FinancialInsightsController@index');
+        Route::post('insights/generate', 'FinancialInsightsController@generate');
+
+        Route::get('review', 'AiReviewCenterController@index');
+        Route::get('review/{id}', 'AiReviewCenterController@show')->whereNumber('id');
+        Route::post('review/{id}/decide', 'AiReviewCenterController@decide')->whereNumber('id');
+
+        Route::get('automation', 'AutomationRuleController@index');
+        Route::post('automation', 'AutomationRuleController@store');
+        Route::get('automation/history', 'AutomationRuleController@history');
+        Route::post('automation/{id}/toggle', 'AutomationRuleController@toggle')->whereNumber('id');
+
+        Route::get('settings', 'AiSettingsController@index');
+        Route::post('settings', 'AiSettingsController@update');
+    });
+
     // Phase 3 — Advanced budgeting
     Route::prefix('budget-versions')->group(function () {
         Route::get('/', 'AdvancedBudgetController@index');

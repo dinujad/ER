@@ -4,6 +4,7 @@ namespace Modules\Accounting\Http\Controllers;
 
 use App\Models\Accounting\BankStatementImport;
 use App\Models\Accounting\BankStatementLine;
+use App\Services\Accounting\Ai\BankMatchingAssistService;
 use App\Services\Accounting\BankMatchingService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -50,8 +51,12 @@ class BankMatchingController extends Controller
             $lines = $query->paginate(25)->withQueryString();
 
             if ($tab === 'suggested' || $tab === 'unmatched') {
+                $assist = app(BankMatchingAssistService::class);
+                $businessId = (int) (session('business.id') ?? Auth::user()?->business_id ?? 0);
                 foreach ($lines as $line) {
-                    $suggestions[$line->id] = BankMatchingService::suggestions($line, $accountId, 5);
+                    $assisted = $assist->assist($line, $accountId, $businessId);
+                    $suggestions[$line->id] = $assisted['suggestions'];
+                    $line->unmatched_explanation = $assisted['unmatched_explanation'];
                 }
             }
         }

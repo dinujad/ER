@@ -168,6 +168,37 @@
             <i class="bi bi-shield-check"></i> Audit Log
         </a>
 
+        <div class="acct-ws-section">AI &amp; Automation</div>
+        <a href="{{ url('accounting/phase5/assistant') }}" class="acct-ws-link {{ request()->is('accounting/phase5/assistant*') ? 'active' : '' }}">
+            <i class="bi bi-robot"></i> AI Accounting Assistant
+        </a>
+        <a href="{{ url('accounting/phase5/ocr') }}" class="acct-ws-link {{ request()->is('accounting/phase5/ocr*') ? 'active' : '' }}">
+            <i class="bi bi-file-earmark-image"></i> Smart Document Capture
+        </a>
+        <a href="{{ url('accounting/phase5/categorization') }}" class="acct-ws-link {{ request()->is('accounting/phase5/categorization*') ? 'active' : '' }}">
+            <i class="bi bi-tags"></i> Categorization Review
+        </a>
+        <a href="{{ url('accounting/phase5/alerts') }}" class="acct-ws-link {{ request()->is('accounting/phase5/alerts*') ? 'active' : '' }}">
+            <i class="bi bi-exclamation-triangle"></i> Financial Alerts
+        </a>
+        <a href="{{ url('accounting/phase5/insights') }}" class="acct-ws-link {{ request()->is('accounting/phase5/insights*') ? 'active' : '' }}">
+            <i class="bi bi-lightbulb"></i> Financial Insights
+        </a>
+        <a href="{{ url('accounting/phase5/review') }}" class="acct-ws-link {{ request()->is('accounting/phase5/review*') ? 'active' : '' }}">
+            <i class="bi bi-clipboard-check"></i> AI Review Center
+        </a>
+        <a href="{{ url('accounting/phase5/automation') }}" class="acct-ws-link {{ request()->is('accounting/phase5/automation') && !request()->is('accounting/phase5/automation/history') ? 'active' : '' }}">
+            <i class="bi bi-diagram-3"></i> Automation Rules
+        </a>
+        <a href="{{ url('accounting/phase5/automation/history') }}" class="acct-ws-link {{ request()->is('accounting/phase5/automation/history') ? 'active' : '' }}">
+            <i class="bi bi-clock-history"></i> Automation History
+        </a>
+        @if($canManage)
+        <a href="{{ url('accounting/phase5/settings') }}" class="acct-ws-link {{ request()->is('accounting/phase5/settings*') ? 'active' : '' }}">
+            <i class="bi bi-sliders"></i> AI Settings
+        </a>
+        @endif
+
         <div class="acct-ws-section">Phase 4 Analytics</div>
         <a href="{{ url('accounting/phase4/financial-dashboard') }}" class="acct-ws-link {{ request()->is('accounting/phase4/financial-dashboard*') ? 'active' : '' }}">
             <i class="bi bi-bar-chart-line"></i> Financial Dashboard

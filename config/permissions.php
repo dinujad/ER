@@ -158,6 +158,10 @@ return [
             'accounting.recurring.manage' => 'Manage Recurring Journals',
             'accounting.periods.manage' => 'Manage Accounting Periods',
             'accounting.reports.export' => 'Export Accounting Reports',
+            'accounting.ai.assistant' => 'Use AI Accounting Assistant',
+            'accounting.ai.ocr' => 'Use Smart Document Capture (OCR)',
+            'accounting.ai.review' => 'Review AI suggestions',
+            'accounting.ai.manage' => 'Manage AI settings and automation',
         ],
     ],
     'users' => [
