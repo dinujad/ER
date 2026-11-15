@@ -114,7 +114,10 @@ class TaxManagementService
 
         $amount = AccountingService::normalizeMoney($amount);
         $period = DB::table('acct_tax_periods')->where('id', $taxPeriodId)->first();
-        if ($period && $period->status === 'closed') {
+        if (! $period) {
+            throw new RuntimeException('Tax period not found.');
+        }
+        if ($period->status === 'closed') {
             throw new RuntimeException('Tax period is closed.');
         }
 

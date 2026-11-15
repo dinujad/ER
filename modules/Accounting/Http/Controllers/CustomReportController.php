@@ -57,7 +57,7 @@ class CustomReportController extends Controller
     public function destroy(int $id)
     {
         $this->requireManage();
-        CustomReportBuilderService::delete($id);
+        CustomReportBuilderService::delete($id, $this->sessionBusinessId());
 
         return back()->with('status', 'Report deleted.');
     }

@@ -53,8 +53,9 @@ class FinancialKpiAnalyticsService
         $ap = self::liabilityBalance(AccountingService::GL_ACCOUNTS_PAY);
         $inventory = self::assetBalance(AccountingService::GL_INVENTORY);
 
+        $loanOutstanding = self::loanOutstanding();
         $currentAssets = $cash + $ar + $inventory;
-        $currentLiabilities = $ap;
+        $currentLiabilities = $ap + $loanOutstanding;
 
         $currentRatio = $currentLiabilities != 0.0 ? round($currentAssets / $currentLiabilities, 2) : null;
         $quickRatio = $currentLiabilities != 0.0 ? round(($currentAssets - $inventory) / $currentLiabilities, 2) : null;
@@ -76,8 +77,23 @@ class FinancialKpiAnalyticsService
             'quick_ratio' => $quickRatio,
             'dso_days' => $dso,
             'dpo_days' => $dpo,
-            'meta' => ['div0' => 'Ratios return null when denominator is zero.'],
+            'loan_outstanding' => $loanOutstanding,
+            'meta' => [
+                'div0' => 'Ratios return null when denominator is zero.',
+                'current_ratio' => '(cash+bank+AR+inventory) / (AP+loan principal)',
+            ],
         ];
+    }
+
+    private static function loanOutstanding(): float
+    {
+        if (Schema::hasTable('acct_loans')) {
+            return round((float) DB::table('acct_loans')
+                ->whereIn('status', ['active', 'disbursed'])
+                ->sum('outstanding_principal'), 2);
+        }
+
+        return self::liabilityBalance(AccountingService::GL_LOANS_PAYABLE);
     }
 
     private static function assetBalance(string $gl): float

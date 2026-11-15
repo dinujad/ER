@@ -49,10 +49,18 @@ class CustomReportBuilderService
     /**
      * @param  array<string, mixed>  $config
      */
-    public static function update(int $id, string $name, array $config, bool $favorite): void
+    public static function update(int $id, string $name, array $config, bool $favorite, ?int $businessId = null): void
     {
         if (! Schema::hasTable('acct_saved_reports')) {
             throw new RuntimeException('Saved reports table is not available.');
+        }
+
+        $row = DB::table('acct_saved_reports')->where('id', $id)->first();
+        if (! $row) {
+            throw new RuntimeException('Saved report not found.');
+        }
+        if ($businessId !== null && (int) $row->business_id !== $businessId) {
+            throw new RuntimeException('Saved report not found for this business.');
         }
 
         DB::table('acct_saved_reports')->where('id', $id)->update([
@@ -63,11 +71,21 @@ class CustomReportBuilderService
         ]);
     }
 
-    public static function delete(int $id): void
+    public static function delete(int $id, ?int $businessId = null): void
     {
-        if (Schema::hasTable('acct_saved_reports')) {
-            DB::table('acct_saved_reports')->where('id', $id)->delete();
+        if (! Schema::hasTable('acct_saved_reports')) {
+            return;
         }
+
+        $row = DB::table('acct_saved_reports')->where('id', $id)->first();
+        if (! $row) {
+            return;
+        }
+        if ($businessId !== null && (int) $row->business_id !== $businessId) {
+            throw new RuntimeException('Saved report not found for this business.');
+        }
+
+        DB::table('acct_saved_reports')->where('id', $id)->delete();
     }
 
     /**

@@ -69,6 +69,10 @@ class TaxManagementController extends Controller
 
     public function summary(int $periodId)
     {
+        $period = DB::table('acct_tax_periods')->where('id', $periodId)->first();
+        abort_unless($period, 404);
+        $this->assertBusinessScope((int) $period->business_id);
+
         $summary = TaxManagementService::taxSummary($periodId);
 
         return view('accounting::phase4.tax.summary', compact('summary'));

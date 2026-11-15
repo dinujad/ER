@@ -91,100 +91,133 @@ class YearEndClosingService
             if (! $fy) {
                 throw new RuntimeException('Financial year not found.');
             }
+
+            $checklist = self::buildChecklist($financialYearId);
+            if (! $checklist['ready']) {
+                throw new RuntimeException(
+                    'Year-end checklist not ready: '
+                    .json_encode([
+                        'trial_balance_balanced' => $checklist['trial_balance_balanced'],
+                        'unposted_manual_journals' => $checklist['unposted_manual_journals'],
+                    ])
+                );
+            }
+
+            $session = DB::table('acct_year_end_sessions')
+                ->where('financial_year_id', $financialYearId)
+                ->orderByDesc('id')
+                ->first();
+
+            $defaultKey = 'year-end:'.$financialYearId;
+            $eventKey = $defaultKey;
+            if ($session && $session->event_key) {
+                $sessionKey = (string) $session->event_key;
+                if ($session->status === 'reopened' || ! self::hasLivePosting($sessionKey)) {
+                    $eventKey = $sessionKey;
+                }
+            }
+
             if ($fy->status === 'closed') {
-                $session = DB::table('acct_year_end_sessions')->where('financial_year_id', $financialYearId)->first();
-                if ($session?->closing_txn) {
+                $postingKey = $session?->event_key ? (string) $session->event_key : $defaultKey;
+                if ($session?->closing_txn && self::hasLivePosting($postingKey)) {
                     return (string) $session->closing_txn;
                 }
-                throw new RuntimeException('Financial year already closed without session record.');
+
+                throw new RuntimeException('Financial year already closed without live closing posting.');
             }
 
-            $eventKey = 'year-end:'.$financialYearId;
-            $existing = DB::table('acct_year_end_sessions')->where('event_key', $eventKey)->first();
-            if ($existing?->closing_txn) {
-                return (string) $existing->closing_txn;
+            if (self::hasLivePosting($eventKey) && $session?->closing_txn) {
+                return (string) $session->closing_txn;
             }
 
-        $preview = self::previewClosing($financialYearId, $retainedEarningsAccountId);
-        $lines = [];
-        $netIncome = 0.0;
+            $preview = self::previewClosing($financialYearId, $retainedEarningsAccountId);
+            $lines = [];
+            $netIncome = 0.0;
 
-        foreach ($preview['income_accounts'] as $row) {
-            $bal = (float) $row['balance'];
-            if (abs($bal) < 0.005) {
-                continue;
+            foreach ($preview['income_accounts'] as $row) {
+                $bal = (float) $row['balance'];
+                if (abs($bal) < 0.005) {
+                    continue;
+                }
+                if ($bal > 0) {
+                    $lines[] = ['account_id' => (int) $row['account_id'], 'debit' => $bal, 'credit' => 0];
+                    $netIncome = round($netIncome + $bal, 2);
+                } else {
+                    $lines[] = ['account_id' => (int) $row['account_id'], 'debit' => 0, 'credit' => abs($bal)];
+                    $netIncome = round($netIncome + $bal, 2);
+                }
             }
-            if ($bal > 0) {
-                $lines[] = ['account_id' => (int) $row['account_id'], 'debit' => $bal, 'credit' => 0];
-                $netIncome = round($netIncome + $bal, 2);
+
+            foreach ($preview['expense_accounts'] as $row) {
+                $bal = (float) $row['balance'];
+                if (abs($bal) < 0.005) {
+                    continue;
+                }
+                if ($bal > 0) {
+                    $lines[] = ['account_id' => (int) $row['account_id'], 'debit' => 0, 'credit' => $bal];
+                    $netIncome = round($netIncome - $bal, 2);
+                } else {
+                    $lines[] = ['account_id' => (int) $row['account_id'], 'debit' => abs($bal), 'credit' => 0];
+                    $netIncome = round($netIncome - $bal, 2);
+                }
+            }
+
+            if ($lines === []) {
+                $pl = FinancialStatementService::profitAndLoss($fy->starts_on, $fy->ends_on);
+                $netIncome = (float) $pl['net'];
+            }
+
+            if (abs($netIncome) >= 0.01) {
+                if ($netIncome > 0) {
+                    $lines[] = ['account_id' => $retainedEarningsAccountId, 'debit' => 0, 'credit' => $netIncome];
+                } else {
+                    $lines[] = ['account_id' => $retainedEarningsAccountId, 'debit' => abs($netIncome), 'credit' => 0];
+                }
+            }
+
+            if ($lines === []) {
+                throw new RuntimeException('Nothing to close for this period.');
+            }
+
+            $txn = AccountingService::postMultiLine(
+                $lines,
+                $fy->ends_on,
+                'Year-end closing '.$fy->name,
+                $fy->name,
+                'year_end_close',
+                ['source_type' => 'financial_year', 'source_id' => $financialYearId],
+                $eventKey,
+                (int) $fy->business_id
+            );
+
+            $sessionPayload = [
+                'status' => 'executed',
+                'checklist' => json_encode($checklist),
+                'closing_txn' => $txn,
+                'retained_earnings_account_id' => $retainedEarningsAccountId,
+                'preview' => json_encode($preview),
+                'executed_by' => $userId,
+                'executed_at' => now(),
+                'event_key' => $eventKey,
+                'updated_at' => now(),
+            ];
+
+            if ($session) {
+                DB::table('acct_year_end_sessions')->where('id', $session->id)->update($sessionPayload);
+                $sessionId = (int) $session->id;
             } else {
-                $lines[] = ['account_id' => (int) $row['account_id'], 'debit' => 0, 'credit' => abs($bal)];
-                $netIncome = round($netIncome + $bal, 2);
+                $sessionId = (int) DB::table('acct_year_end_sessions')->insertGetId(array_merge($sessionPayload, [
+                    'financial_year_id' => $financialYearId,
+                    'created_at' => now(),
+                ]));
             }
-        }
 
-        foreach ($preview['expense_accounts'] as $row) {
-            $bal = (float) $row['balance'];
-            if (abs($bal) < 0.005) {
-                continue;
-            }
-            if ($bal > 0) {
-                $lines[] = ['account_id' => (int) $row['account_id'], 'debit' => 0, 'credit' => $bal];
-                $netIncome = round($netIncome - $bal, 2);
-            } else {
-                $lines[] = ['account_id' => (int) $row['account_id'], 'debit' => abs($bal), 'credit' => 0];
-                $netIncome = round($netIncome - $bal, 2);
-            }
-        }
-
-        if ($lines === []) {
-            $pl = FinancialStatementService::profitAndLoss($fy->starts_on, $fy->ends_on);
-            $netIncome = (float) $pl['net'];
-        }
-
-        if (abs($netIncome) >= 0.01) {
-            if ($netIncome > 0) {
-                $lines[] = ['account_id' => $retainedEarningsAccountId, 'debit' => 0, 'credit' => $netIncome];
-            } else {
-                $lines[] = ['account_id' => $retainedEarningsAccountId, 'debit' => abs($netIncome), 'credit' => 0];
-            }
-        }
-
-        if ($lines === []) {
-            throw new RuntimeException('Nothing to close for this period.');
-        }
-
-        $txn = AccountingService::postMultiLine(
-            $lines,
-            $fy->ends_on,
-            'Year-end closing '.$fy->name,
-            $fy->name,
-            'year_end_close',
-            ['source_type' => 'financial_year', 'source_id' => $financialYearId],
-            $eventKey,
-            (int) $fy->business_id
-        );
-
-        $sessionId = DB::table('acct_year_end_sessions')->insertGetId([
-            'financial_year_id' => $financialYearId,
-            'status' => 'executed',
-            'checklist' => json_encode(self::buildChecklist($financialYearId)),
-            'closing_txn' => $txn,
-            'retained_earnings_account_id' => $retainedEarningsAccountId,
-            'preview' => json_encode($preview),
-            'executed_by' => $userId,
-            'executed_at' => now(),
-            'event_key' => $eventKey,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        DB::table('acct_financial_years')->where('id', $financialYearId)->update([
-            'status' => 'closed',
-            'closed_at' => now(),
-            'closed_by' => $userId,
-            'updated_at' => now(),
-        ]);
+            DB::table('acct_financial_years')->where('id', $financialYearId)->update([
+                'status' => 'closed',
+                'closed_at' => now(),
+                'closed_by' => $userId,
+                'updated_at' => now(),
+            ]);
 
             AccountingAuditService::record(
                 'year_end.executed',
@@ -207,13 +240,29 @@ class YearEndClosingService
             throw new RuntimeException('Financial year is not closed.');
         }
 
-        $eventKey = 'year-end:'.$financialYearId;
-        AccountingService::reverseEvent($eventKey);
+        $session = DB::table('acct_year_end_sessions')
+            ->where('financial_year_id', $financialYearId)
+            ->orderByDesc('id')
+            ->first();
 
-        DB::table('acct_year_end_sessions')->where('financial_year_id', $financialYearId)->update([
-            'status' => 'reopened',
-            'updated_at' => now(),
-        ]);
+        $keysToReverse = ['year-end:'.$financialYearId];
+        if ($session && $session->event_key) {
+            $keysToReverse[] = (string) $session->event_key;
+        }
+        foreach (array_unique($keysToReverse) as $key) {
+            AccountingService::reverseEvent($key);
+        }
+
+        $newKey = 'year-end:'.$financialYearId.':v'.time();
+
+        if ($session) {
+            DB::table('acct_year_end_sessions')->where('id', $session->id)->update([
+                'status' => 'reopened',
+                'closing_txn' => null,
+                'event_key' => $newKey,
+                'updated_at' => now(),
+            ]);
+        }
 
         DB::table('acct_financial_years')->where('id', $financialYearId)->update([
             'status' => 'open',
@@ -226,11 +275,23 @@ class YearEndClosingService
             'year_end.reopened',
             (object) ['id' => $financialYearId],
             ['status' => 'closed'],
-            ['status' => 'open'],
+            ['status' => 'open', 'event_key' => $newKey],
             $reason ?? 'Year-end reopened',
             (int) $fy->business_id,
             $userId
         );
+    }
+
+    private static function hasLivePosting(string $eventKey): bool
+    {
+        if (! Schema::hasTable('accounting_postings')) {
+            return false;
+        }
+
+        return DB::table('accounting_postings')
+            ->where('event_key', $eventKey)
+            ->where('reversed', 0)
+            ->exists();
     }
 
     /** @return list<array<string, mixed>> */

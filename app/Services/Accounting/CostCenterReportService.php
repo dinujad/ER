@@ -36,6 +36,39 @@ class CostCenterReportService
             $q->whereRaw('0 = 1');
         }
 
+        return self::formatProfitAndLossResult($costCenterId, $from, $to, $q);
+    }
+
+    /**
+     * Statutory company-wide P&L — includes all journal lines regardless of cost_center_id.
+     *
+     * @return array<string, mixed>
+     */
+    public static function companyWideProfitAndLoss(string $from, string $to): array
+    {
+        if (! Schema::hasTable('journal_entries')) {
+            return ['income' => '0.00', 'expense' => '0.00', 'net' => '0.00', 'lines' => []];
+        }
+
+        $q = DB::table('journal_entries as je')
+            ->join('chart_of_accounts as coa', 'coa.id', '=', 'je.chart_of_account_id')
+            ->where('je.reversed', 0)
+            ->whereBetween('je.date', [$from, $to])
+            ->whereIn('coa.account_type', ['income', 'expense']);
+
+        $result = self::formatProfitAndLossResult(null, $from, $to, $q);
+        unset($result['cost_center_id']);
+
+        return $result;
+    }
+
+    /** @param  \Illuminate\Database\Query\Builder  $q */
+    private static function formatProfitAndLossResult(
+        ?int $costCenterId,
+        string $from,
+        string $to,
+        $q
+    ): array {
         $rows = $q->selectRaw('coa.id as account_id, coa.gl_code, coa.name, coa.account_type,
             COALESCE(SUM(je.debit),0) as debits, COALESCE(SUM(je.credit),0) as credits')
             ->groupBy('coa.id', 'coa.gl_code', 'coa.name', 'coa.account_type')

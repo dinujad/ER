@@ -56,10 +56,18 @@ class FinancialStatementService
             $totals[$type] = round($totals[$type] + $row['balance'], 2);
         }
 
-        $periodPl = self::incomeExpenseTotals(
-            date('Y-01-01', strtotime($asOf)),
-            $asOf
-        );
+        $ytdStart = date('Y-01-01', strtotime($asOf));
+        if (Schema::hasTable('acct_financial_years')) {
+            $fy = DB::table('acct_financial_years')
+                ->where('starts_on', '<=', $asOf)
+                ->where('ends_on', '>=', $asOf)
+                ->orderByDesc('starts_on')
+                ->first();
+            if ($fy) {
+                $ytdStart = (string) $fy->starts_on;
+            }
+        }
+        $periodPl = self::incomeExpenseTotals($ytdStart, $asOf);
         $currentEarnings = $periodPl['net'];
         $totals['equity'] = round($totals['equity'] + $currentEarnings, 2);
 
@@ -99,6 +107,8 @@ class FinancialStatementService
         }
 
         $netChange = round($buckets['operating'] + $buckets['investing'] + $buckets['financing'] + $buckets['unclassified'], 2);
+        $cashGlChange = self::cashGlMovement($from, $to);
+        $variance = round($netChange - $cashGlChange, 2);
 
         return [
             'currency' => 'LKR',
@@ -109,6 +119,10 @@ class FinancialStatementService
             'lines' => $lines,
             'meta' => [
                 'method' => 'indirect_heuristic',
+                'indirect_net_change' => $netChange,
+                'cash_gl_change' => $cashGlChange,
+                'variance_vs_cash_gl' => $variance,
+                'reconciliation_note' => 'indirect_net_change uses heuristic bucket classification; cash_gl_change is actual GL_CASH+GL_BANK net movement for the period.',
                 'assumptions' => [
                     'Income/expense and working-capital GL codes map to operating.',
                     'FA codes 14xx/15xx map to investing; loan codes 22xx to financing.',
@@ -200,7 +214,7 @@ class FinancialStatementService
     /** @return array{income: float, expense: float, net: float, lines: list<array<string, mixed>>} */
     private static function incomeExpenseTotals(string $from, string $to): array
     {
-        $pl = CostCenterReportService::profitAndLoss(null, $from, $to);
+        $pl = CostCenterReportService::companyWideProfitAndLoss($from, $to);
 
         return [
             'income' => (float) $pl['income'],
@@ -321,6 +335,26 @@ class FinancialStatementService
         }
 
         return 'unclassified';
+    }
+
+    private static function cashGlMovement(string $from, string $to): float
+    {
+        $ids = array_filter([
+            AccountingService::accountId(AccountingService::GL_CASH),
+            AccountingService::accountId(AccountingService::GL_BANK),
+        ]);
+        if ($ids === []) {
+            return 0.0;
+        }
+
+        $row = DB::table('journal_entries')
+            ->whereIn('chart_of_account_id', $ids)
+            ->where('reversed', 0)
+            ->whereBetween('date', [$from, $to])
+            ->selectRaw('COALESCE(SUM(debit),0)-COALESCE(SUM(credit),0) as net')
+            ->first();
+
+        return round((float) ($row->net ?? 0), 2);
     }
 
     /** @param  array<string, mixed>  $row */

@@ -110,7 +110,7 @@ class CashFlowForecastService
                 ->get();
 
             foreach ($rows as $row) {
-                $amount = (float) ($row->final_total ?? $row->total ?? 0);
+                $amount = self::transactionRemainingAmount($row);
                 $due = isset($row->transaction_date)
                     ? date('Y-m-d', strtotime((string) $row->transaction_date." +{$delayDays} days"))
                     : $asOf;
@@ -145,7 +145,7 @@ class CashFlowForecastService
                     'source' => 'ap_purchase',
                     'reference' => $row->ref_no ?? $row->id,
                     'due_date' => $row->transaction_date ?? $asOf,
-                    'amount' => round((float) ($row->final_total ?? $row->total ?? 0), 2),
+                    'amount' => self::transactionRemainingAmount($row),
                 ];
             }
         }
@@ -167,5 +167,23 @@ class CashFlowForecastService
         }
 
         return $items;
+    }
+
+    private static function transactionRemainingAmount(object $row): float
+    {
+        $total = (float) ($row->final_total ?? $row->total ?? 0);
+        if (Schema::hasColumn('transactions', 'amount_paid')) {
+            return round(max(0, $total - (float) $row->amount_paid), 2);
+        }
+        if (Schema::hasColumn('transactions', 'payment_status') && ($row->payment_status ?? '') === 'paid') {
+            return 0.0;
+        }
+        if (Schema::hasTable('transaction_payments') && isset($row->id)) {
+            $paid = (float) DB::table('transaction_payments')->where('transaction_id', $row->id)->sum('amount');
+
+            return round(max(0, $total - $paid), 2);
+        }
+
+        return round($total, 2);
     }
 }

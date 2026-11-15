@@ -50,6 +50,10 @@ class YearEndClosingController extends Controller
 
     public function show(int $id)
     {
+        $fy = DB::table('acct_financial_years')->where('id', $id)->first();
+        abort_unless($fy, 404);
+        $this->assertBusinessScope((int) $fy->business_id);
+
         $checklist = YearEndClosingService::buildChecklist($id);
         $retainedId = AccountingService::accountId(AccountingService::GL_OWNER_EQUITY);
         $preview = YearEndClosingService::previewClosing($id, (int) $retainedId);
@@ -60,6 +64,10 @@ class YearEndClosingController extends Controller
     public function execute(Request $request, int $id)
     {
         $this->requireManage();
+        $fy = DB::table('acct_financial_years')->where('id', $id)->first();
+        abort_unless($fy, 404);
+        $this->assertBusinessScope((int) $fy->business_id);
+
         $retained = (int) $request->input('retained_earnings_account_id', AccountingService::accountId(AccountingService::GL_OWNER_EQUITY));
         $txn = YearEndClosingService::executeClosing($id, $retained, Auth::id());
 
