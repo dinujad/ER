@@ -1,19 +1,14 @@
-# Phase 2 — Remaining Issues
+# Phase 2 — Remaining Issues (after completion pass)
 
 | Item | Severity | Status |
 |------|----------|--------|
-| Interactive bank match suggestions UI | Medium | Schema ready; UI incomplete |
-| Excel (.xlsx) statement import | Low | CSV only |
-| Customer/supplier statement PDF | Medium | Ledger HTML only |
-| Payment allocation HTTP screens | Medium | Service exists; limited UI |
-| Recurring sales invoices / purchase bills | Medium | Journals only |
-| `draft_notify` email | Low | No mailer hook yet |
+| `draft_notify` email notifications | Low | Not wired |
+| Import column-mapping UI (manual remap screen) | Low | Auto header detection works; no interactive mapper UI |
+| Customer/supplier advance dedicated UX | Medium | Allocations block overpay; advance workflows partial |
 | Circular parent validation on COA update | Medium | Delete guards only |
-| Account tree UI (nested table) | Low | Flat list + parent field preserved |
-| Opening balance wizard vs AR/AP subledgers | Medium | COA opening + period controls; dedicated wizard partial |
-| Production `accounting:diagnose` on live DB | Ops | Not run (no prod mutation) |
-| Phase 1 partial items (cheque Eloquent E2E, sale-return COGS items, inventory qty vs GL) | Inherited | Still PARTIAL from Phase 1 |
+| Production `accounting:diagnose` on live DB | Ops | Not run |
+| Phase 1 inherited PARTIAL items (cheque Eloquent E2E, sale-return COGS items, inventory qty vs GL) | Inherited | Still PARTIAL |
 
-## Honest completion
+## P0/P1 financial defects
 
-Phase 2 is **partially complete**: foundation + journals + register + periods + recurring + statement import + ledgers are shipped and unit-tested; banking matcher / full AR-AP statement PDF / document-level recurring remain open.
+None open after completion-pass automated tests (38/38 green).

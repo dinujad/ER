@@ -11,6 +11,7 @@ class RecurringAccountingRun extends Model
 
     protected $fillable = [
         'template_id', 'occurrence_date', 'status', 'manual_journal_id', 'message',
+        'generated_type', 'generated_id', 'execution_key',
     ];
 
     protected $casts = [

@@ -11,12 +11,13 @@ class BankStatementLine extends Model
 
     protected $fillable = [
         'bank_statement_import_id', 'txn_date', 'description', 'reference',
-        'debit', 'credit', 'amount', 'fingerprint', 'match_status',
-        'matched_source_type', 'matched_source_id',
+        'debit', 'credit', 'amount', 'fingerprint', 'match_status', 'excluded_reason',
+        'matched_source_type', 'matched_source_id', 'matched_at', 'matched_by',
     ];
 
     protected $casts = [
         'txn_date' => 'date',
+        'matched_at' => 'datetime',
     ];
 
     public function import(): BelongsTo

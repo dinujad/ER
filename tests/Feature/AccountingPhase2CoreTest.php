@@ -172,9 +172,12 @@ class AccountingPhase2CoreTest extends TestCase
             $table->id();
             $table->unsignedBigInteger('business_id')->default(0);
             $table->string('name');
+            $table->string('document_type')->default('journal');
             $table->string('frequency');
             $table->date('starts_on');
             $table->date('ends_on')->nullable();
+            $table->unsignedInteger('max_occurrences')->nullable();
+            $table->unsignedInteger('occurrence_count')->default(0);
             $table->date('next_run_on')->nullable();
             $table->string('status')->default('active');
             $table->string('execution_mode')->default('draft');
@@ -189,6 +192,9 @@ class AccountingPhase2CoreTest extends TestCase
             $table->date('occurrence_date');
             $table->string('status')->default('created');
             $table->unsignedBigInteger('manual_journal_id')->nullable();
+            $table->string('generated_type')->nullable();
+            $table->unsignedBigInteger('generated_id')->nullable();
+            $table->string('execution_key')->nullable()->unique();
             $table->string('message', 500)->nullable();
             $table->timestamps();
             $table->unique(['template_id', 'occurrence_date']);

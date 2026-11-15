@@ -40,7 +40,7 @@ class PaymentAllocationService
                     throw new RuntimeException("Order {$orderId} not found.");
                 }
 
-                $orderTotal = round((float) ($order->final_total ?? $order->total ?? 0), 2);
+                $orderTotal = round((float) ($order->total_amount ?? $order->final_total ?? $order->total ?? 0), 2);
                 $alreadyOnOrder = round((float) CustomerPaymentAllocation::where('order_id', $orderId)->sum('amount'), 2);
                 $outstanding = round($orderTotal - $alreadyOnOrder, 2);
 

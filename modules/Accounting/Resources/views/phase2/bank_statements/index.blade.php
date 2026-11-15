@@ -13,10 +13,10 @@
             @endforeach
         </select>
     </div>
-    <div class="col-md-4"><input type="file" name="file" accept=".csv,text/csv" class="form-control form-control-sm" required></div>
-    <div class="col-md-2"><button class="btn btn-sm btn-primary">Import CSV</button></div>
+    <div class="col-md-4"><input type="file" name="file" accept=".csv,.txt,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="form-control form-control-sm" required></div>
+    <div class="col-md-2"><button class="btn btn-sm btn-primary">Import CSV/XLSX</button></div>
 </form>
-<p class="small text-muted">CSV headers: date, description, reference, debit, credit (or amount).</p>
+<p class="small text-muted">Headers: date, description, reference, debit, credit (or amount). Max 5MB / 5000 rows. Import does not post GL.</p>
 
 <table class="table table-sm">
     <thead><tr><th>ID</th><th>File</th><th>Rows</th><th>Status</th><th>Imported</th><th></th></tr></thead>

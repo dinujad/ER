@@ -31,23 +31,28 @@ class BankStatementController extends Controller
     {
         $request->validate([
             'chart_of_account_id' => 'required|integer',
-            'file' => 'required|file|mimes:csv,txt',
+            'file' => 'required|file|mimes:csv,txt,xlsx,xls|max:5120',
         ]);
 
         try {
-            $contents = file_get_contents($request->file('file')->getRealPath());
-            $rows = BankStatementImportService::parseCsv($contents ?: '');
-            $import = BankStatementImportService::import(
+            $file = $request->file('file');
+            $rows = BankStatementImportService::parseUploadedFile($file);
+            $result = BankStatementImportService::importWithErrors(
                 (int) $request->chart_of_account_id,
                 $rows,
-                $request->file('file')->getClientOriginalName(),
+                $file->getClientOriginalName(),
                 0,
                 Auth::id(),
                 true
             );
-            (new FlashService())->onSave();
 
-            return redirect('accounting/bank-statements/'.$import->id);
+            if ($result['errors']) {
+                (new FlashService())->onWarning(implode(' ', array_slice($result['errors'], 0, 5)));
+            } else {
+                (new FlashService())->onSave();
+            }
+
+            return redirect('accounting/bank-statements/'.$result['import']->id);
         } catch (\Throwable $e) {
             return (new FlashService())->onException($e)->redirectBackWithInput();
         }

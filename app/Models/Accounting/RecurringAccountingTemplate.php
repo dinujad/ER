@@ -10,7 +10,8 @@ class RecurringAccountingTemplate extends Model
     protected $table = 'accounting_recurring_templates';
 
     protected $fillable = [
-        'business_id', 'name', 'frequency', 'starts_on', 'ends_on', 'next_run_on',
+        'business_id', 'name', 'document_type', 'frequency', 'starts_on', 'ends_on',
+        'max_occurrences', 'occurrence_count', 'next_run_on',
         'status', 'execution_mode', 'payload', 'created_by',
     ];
 

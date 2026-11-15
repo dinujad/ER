@@ -44,8 +44,17 @@
         <a href="{{ url('accounting/manual-journals/approvals') }}" class="acct-ws-link {{ request()->is('accounting/manual-journals/approvals') ? 'active' : '' }}">
             <i class="bi bi-check2-square"></i> Approval Queue
         </a>
-        <a href="{{ url('accounting/recurring-journals') }}" class="acct-ws-link {{ request()->is('accounting/recurring-journals*') ? 'active' : '' }}">
+        <a href="{{ url('accounting/recurring-journals?document_type=journal') }}" class="acct-ws-link {{ request()->is('accounting/recurring-journals*') && request('document_type','journal')==='journal' ? 'active' : '' }}">
             <i class="bi bi-arrow-repeat"></i> Recurring Journals
+        </a>
+        <a href="{{ url('accounting/recurring-journals?document_type=invoice') }}" class="acct-ws-link {{ request('document_type')==='invoice' ? 'active' : '' }}">
+            <i class="bi bi-receipt"></i> Recurring Invoices
+        </a>
+        <a href="{{ url('accounting/recurring-journals?document_type=bill') }}" class="acct-ws-link {{ request('document_type')==='bill' ? 'active' : '' }}">
+            <i class="bi bi-file-earmark-ruled"></i> Recurring Bills
+        </a>
+        <a href="{{ url('accounting/recurring-journals/history') }}" class="acct-ws-link {{ request()->is('accounting/recurring-journals/history') ? 'active' : '' }}">
+            <i class="bi bi-clock-history"></i> Execution History
         </a>
         <a href="{{ url('accounting/transactions/sales') }}" class="acct-ws-link {{ request()->is('accounting/transactions*') ? 'active' : '' }}">
             <i class="bi bi-arrow-left-right"></i> ERP Transactions
@@ -56,23 +65,41 @@
 
         <div class="acct-ws-section">Banking</div>
         <a href="{{ url('accounting/reconcile') }}" class="acct-ws-link {{ request()->is('accounting/reconcile*') ? 'active' : '' }}">
-            <i class="bi bi-bank"></i> Bank Reconciliation
+            <i class="bi bi-bank"></i> Reconciliation
         </a>
         <a href="{{ url('accounting/bank-statements') }}" class="acct-ws-link {{ request()->is('accounting/bank-statements*') ? 'active' : '' }}">
             <i class="bi bi-file-earmark-spreadsheet"></i> Statement Imports
         </a>
+        <a href="{{ url('accounting/bank-matching') }}" class="acct-ws-link {{ request()->is('accounting/bank-matching*') ? 'active' : '' }}">
+            <i class="bi bi-link-45deg"></i> Transaction Matching
+        </a>
+        <a href="{{ url('accounting/bank-reconciliation-report') }}" class="acct-ws-link {{ request()->is('accounting/bank-reconciliation-report*') ? 'active' : '' }}">
+            <i class="bi bi-filetype-pdf"></i> Recon Report PDF
+        </a>
 
         <div class="acct-ws-section">Receivables</div>
-        <a href="{{ url('accounting/receivables/customer-ledger') }}" class="acct-ws-link {{ request()->is('accounting/receivables*') ? 'active' : '' }}">
+        <a href="{{ url('accounting/receivables/customer-ledger') }}" class="acct-ws-link {{ request()->is('accounting/receivables/customer-ledger*') ? 'active' : '' }}">
             <i class="bi bi-people"></i> Customer Ledger
+        </a>
+        <a href="{{ url('accounting/receivables/payment-allocation') }}" class="acct-ws-link {{ request()->is('accounting/receivables/payment-allocation*') ? 'active' : '' }}">
+            <i class="bi bi-cash-coin"></i> Payment Allocation
+        </a>
+        <a href="{{ url('accounting/receivables/customer-statement') }}" class="acct-ws-link {{ request()->is('accounting/receivables/customer-statement*') ? 'active' : '' }}">
+            <i class="bi bi-filetype-pdf"></i> Customer Statements
         </a>
         <a href="{{ url('report/accounting/accounts_receivable_ageing_summary') }}" class="acct-ws-link {{ request()->is('report/accounting/accounts_receivable*') ? 'active' : '' }}">
             <i class="bi bi-calendar3"></i> AR Ageing
         </a>
 
         <div class="acct-ws-section">Payables</div>
-        <a href="{{ url('accounting/payables/supplier-ledger') }}" class="acct-ws-link {{ request()->is('accounting/payables*') ? 'active' : '' }}">
+        <a href="{{ url('accounting/payables/supplier-ledger') }}" class="acct-ws-link {{ request()->is('accounting/payables/supplier-ledger*') ? 'active' : '' }}">
             <i class="bi bi-building"></i> Supplier Ledger
+        </a>
+        <a href="{{ url('accounting/payables/payment-allocation') }}" class="acct-ws-link {{ request()->is('accounting/payables/payment-allocation*') ? 'active' : '' }}">
+            <i class="bi bi-cash-coin"></i> Payment Allocation
+        </a>
+        <a href="{{ url('accounting/payables/supplier-statement') }}" class="acct-ws-link {{ request()->is('accounting/payables/supplier-statement*') ? 'active' : '' }}">
+            <i class="bi bi-filetype-pdf"></i> Supplier Statements
         </a>
         <a href="{{ url('report/accounting/accounts_payable_ageing_summary') }}" class="acct-ws-link {{ request()->is('report/accounting/accounts_payable*') ? 'active' : '' }}">
             <i class="bi bi-calendar3"></i> AP Ageing

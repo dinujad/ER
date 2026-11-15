@@ -116,20 +116,38 @@ Route::group(['middleware' => ['web', 'auth', 'accounting.session', 'accounting.
         Route::post('{id}/reopen', 'AccountingPeriodController@reopen');
     });
 
-    // Phase 2 — Bank statement imports
+    // Phase 2 — Bank statement imports + matching
     Route::prefix('bank-statements')->group(function () {
         Route::get('/', 'BankStatementController@index');
         Route::post('/', 'BankStatementController@store');
         Route::get('{id}', 'BankStatementController@show');
     });
+    Route::prefix('bank-matching')->group(function () {
+        Route::get('/', 'BankMatchingController@index');
+        Route::post('{id}/confirm', 'BankMatchingController@confirm');
+        Route::post('{id}/unmatch', 'BankMatchingController@unmatch');
+        Route::post('{id}/exclude', 'BankMatchingController@exclude');
+    });
+    Route::get('bank-reconciliation-report', 'AccountingStatementController@bankReconForm');
+    Route::get('bank-reconciliation-report/pdf', 'AccountingStatementController@bankReconPdf');
 
-    // Phase 2 — AR / AP ledgers
+    // Phase 2 — AR / AP
     Route::get('receivables/customer-ledger', 'CustomerLedgerController@index');
-    Route::get('payables/supplier-ledger', 'SupplierLedgerController@index');
+    Route::get('receivables/payment-allocation', 'PaymentAllocationController@customerIndex');
+    Route::post('receivables/payment-allocation', 'PaymentAllocationController@customerStore');
+    Route::get('receivables/customer-statement', 'AccountingStatementController@customerForm');
+    Route::get('receivables/customer-statement/pdf', 'AccountingStatementController@customerPdf');
 
-    // Phase 2 — Recurring
+    Route::get('payables/supplier-ledger', 'SupplierLedgerController@index');
+    Route::get('payables/payment-allocation', 'PaymentAllocationController@supplierIndex');
+    Route::post('payables/payment-allocation', 'PaymentAllocationController@supplierStore');
+    Route::get('payables/supplier-statement', 'AccountingStatementController@supplierForm');
+    Route::get('payables/supplier-statement/pdf', 'AccountingStatementController@supplierPdf');
+
+    // Phase 2 — Recurring (journals / invoices / bills)
     Route::prefix('recurring-journals')->group(function () {
         Route::get('/', 'RecurringJournalController@index');
+        Route::get('history', 'RecurringJournalController@history');
         Route::get('create', 'RecurringJournalController@create');
         Route::post('/', 'RecurringJournalController@store');
         Route::post('{id}/pause', 'RecurringJournalController@pause');
