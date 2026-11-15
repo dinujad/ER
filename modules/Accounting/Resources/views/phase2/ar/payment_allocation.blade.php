@@ -15,8 +15,14 @@
     <div class="col-auto"><button class="btn btn-sm btn-primary">Load</button></div>
 </form>
 
+@if(!empty($arReconcile))
+<p class="small text-muted">AR control vs subledger (as of {{ $arReconcile['as_of'] }}): GL {{ $arReconcile['gl_ar'] }} · Subledger {{ $arReconcile['subledger_ar'] }} · Diff {{ $arReconcile['difference'] }}</p>
+@endif
 @if($payment)
-<p>Payment #{{ $payment->id }} · Amount LKR {{ number_format((float)$payment->amount,2) }}</p>
+<p>Payment #{{ $payment->id }} · Amount LKR {{ number_format((float)$payment->amount,2) }}
+ · Allocated {{ number_format((float)$payment->amount - (float)($unallocated ?? 0), 2) }}
+ · <strong>Unallocated / advance LKR {{ number_format((float)($unallocated ?? 0), 2) }}</strong>
+</p>
 @if($allocations->count())
 <h2 class="h6">Existing allocations</h2>
 <ul>@foreach($allocations as $a)<li>Order #{{ $a->order_id }} → {{ number_format((float)$a->amount,2) }}</li>@endforeach</ul>

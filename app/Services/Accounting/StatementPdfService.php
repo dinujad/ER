@@ -165,22 +165,57 @@ class StatementPdfService
         $glBalance = $arId ? AccountRegisterService::register($arId, '1970-01-01', $asOf)['closing'] : '0.00';
 
         $subledger = 0.0;
+        $contributing = [];
+        $notes = [];
+
         if (Schema::hasTable('orders')) {
-            $orders = DB::table('orders')->whereNotIn('status', ['cancelled', 'quotation'])->get();
+            $orders = DB::table('orders')
+                ->whereNotIn('status', ['cancelled', 'quotation', 'draft'])
+                ->get();
             foreach ($orders as $o) {
                 $total = round((float) ($o->total_amount ?? 0), 2);
-                $paid = Schema::hasTable('payments')
-                    ? round((float) DB::table('payments')->where('order_id', $o->id)->sum('amount'), 2)
-                    : 0.0;
-                $subledger += max(0, round($total - $paid, 2));
+                $paid = 0.0;
+                if (Schema::hasTable('payments')) {
+                    $pq = DB::table('payments')->where('order_id', $o->id);
+                    if (Schema::hasColumn('payments', 'cheque_status')) {
+                        $pq->where(function ($w) {
+                            $w->whereNull('cheque_status')
+                                ->orWhere('cheque_status', '!=', 'bounced');
+                        });
+                    }
+                    if (Schema::hasColumn('payments', 'entry_type')) {
+                        $pq->where(function ($w) {
+                            $w->whereNull('entry_type')->orWhere('entry_type', '!=', 'refund');
+                        });
+                    }
+                    $paid = round((float) $pq->sum('amount'), 2);
+                }
+                $outstanding = max(0, round($total - $paid, 2));
+                $subledger = round($subledger + $outstanding, 2);
+                if ($outstanding > 0) {
+                    $contributing[] = [
+                        'order_id' => $o->id,
+                        'total' => number_format($total, 2, '.', ''),
+                        'paid' => number_format($paid, 2, '.', ''),
+                        'outstanding' => number_format($outstanding, 2, '.', ''),
+                    ];
+                }
             }
+        }
+
+        $diff = round((float) $glBalance - $subledger, 2);
+        if (abs($diff) > 0.009) {
+            $notes[] = 'Difference may reflect timing (unposted credit sales), advances in non-AR accounts, or opening balances not mirrored in orders.';
         }
 
         return [
             'as_of' => $asOf,
+            'business_id' => 0,
             'gl_ar' => $glBalance,
             'subledger_ar' => number_format(round($subledger, 2), 2, '.', ''),
-            'difference' => number_format(round((float) $glBalance - $subledger, 2), 2, '.', ''),
+            'difference' => number_format($diff, 2, '.', ''),
+            'contributing' => $contributing,
+            'notes' => $notes,
         ];
     }
 
@@ -191,22 +226,42 @@ class StatementPdfService
         $glBalance = $apId ? AccountRegisterService::register($apId, '1970-01-01', $asOf)['closing'] : '0.00';
 
         $subledger = 0.0;
+        $contributing = [];
+        $notes = [];
+
         if (Schema::hasTable('purchases')) {
-            $bills = DB::table('purchases')->where('status', '!=', 'cancelled')->get();
+            $bills = DB::table('purchases')->whereNotIn('status', ['cancelled', 'draft'])->get();
             foreach ($bills as $b) {
                 $total = round((float) ($b->total ?? 0), 2);
                 $paid = Schema::hasTable('purchase_payments')
                     ? round((float) DB::table('purchase_payments')->where('purchase_id', $b->id)->sum('amount'), 2)
                     : round((float) ($b->paid_amount ?? 0), 2);
-                $subledger += max(0, round($total - $paid, 2));
+                $outstanding = max(0, round($total - $paid, 2));
+                $subledger = round($subledger + $outstanding, 2);
+                if ($outstanding > 0) {
+                    $contributing[] = [
+                        'purchase_id' => $b->id,
+                        'total' => number_format($total, 2, '.', ''),
+                        'paid' => number_format($paid, 2, '.', ''),
+                        'outstanding' => number_format($outstanding, 2, '.', ''),
+                    ];
+                }
             }
+        }
+
+        $diff = round((float) $glBalance - $subledger, 2);
+        if (abs($diff) > 0.009) {
+            $notes[] = 'Difference may reflect supplier advances, unposted confirmed bills, or opening AP balances.';
         }
 
         return [
             'as_of' => $asOf,
+            'business_id' => 0,
             'gl_ap' => $glBalance,
             'subledger_ap' => number_format(round($subledger, 2), 2, '.', ''),
-            'difference' => number_format(round((float) $glBalance - $subledger, 2), 2, '.', ''),
+            'difference' => number_format($diff, 2, '.', ''),
+            'contributing' => $contributing,
+            'notes' => $notes,
         ];
     }
 

@@ -9,6 +9,30 @@ use RuntimeException;
 
 class PaymentAllocationService
 {
+    public static function customerUnallocated(int $paymentId): float
+    {
+        $payment = DB::table('payments')->where('id', $paymentId)->first();
+        if (! $payment) {
+            return 0.0;
+        }
+        $paymentAmount = round((float) ($payment->amount ?? 0), 2);
+        $allocated = round((float) CustomerPaymentAllocation::where('payment_id', $paymentId)->sum('amount'), 2);
+
+        return round(max(0, $paymentAmount - $allocated), 2);
+    }
+
+    public static function supplierUnallocated(int $purchasePaymentId): float
+    {
+        $payment = DB::table('purchase_payments')->where('id', $purchasePaymentId)->first();
+        if (! $payment) {
+            return 0.0;
+        }
+        $paymentAmount = round((float) ($payment->amount ?? 0), 2);
+        $allocated = round((float) SupplierPaymentAllocation::where('purchase_payment_id', $purchasePaymentId)->sum('amount'), 2);
+
+        return round(max(0, $paymentAmount - $allocated), 2);
+    }
+
     /**
      * @param  array<int, array{order_id:int, amount:float|string}>  $allocations
      */
@@ -22,6 +46,10 @@ class PaymentAllocationService
             $payment = DB::table('payments')->where('id', $paymentId)->lockForUpdate()->first();
             if (! $payment) {
                 throw new RuntimeException('Payment not found.');
+            }
+
+            if (! empty($payment->cheque_status) && $payment->cheque_status === 'bounced') {
+                throw new RuntimeException('Cannot allocate a bounced cheque payment.');
             }
 
             $paymentAmount = round((float) ($payment->amount ?? 0), 2);
@@ -38,6 +66,9 @@ class PaymentAllocationService
                 $order = DB::table('orders')->where('id', $orderId)->lockForUpdate()->first();
                 if (! $order) {
                     throw new RuntimeException("Order {$orderId} not found.");
+                }
+                if (in_array(($order->status ?? ''), ['cancelled', 'quotation'], true)) {
+                    throw new RuntimeException("Cannot allocate to cancelled/quotation order {$orderId}.");
                 }
 
                 $orderTotal = round((float) ($order->total_amount ?? $order->final_total ?? $order->total ?? 0), 2);

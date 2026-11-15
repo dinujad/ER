@@ -5,6 +5,7 @@ namespace Modules\Accounting\Http\Controllers;
 use App\Models\Accounting\CustomerPaymentAllocation;
 use App\Models\Accounting\SupplierPaymentAllocation;
 use App\Services\Accounting\PaymentAllocationService;
+use App\Services\Accounting\StatementPdfService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
@@ -50,7 +51,12 @@ class PaymentAllocationController extends Controller
             $allocations = CustomerPaymentAllocation::where('payment_id', $paymentId)->get();
         }
 
-        return view('accounting::phase2.ar.payment_allocation', compact('payments', 'paymentId', 'payment', 'openInvoices', 'allocations'));
+        $unallocated = $paymentId > 0 ? PaymentAllocationService::customerUnallocated($paymentId) : 0.0;
+        $arReconcile = StatementPdfService::arControlReconciliation();
+
+        return view('accounting::phase2.ar.payment_allocation', compact(
+            'payments', 'paymentId', 'payment', 'openInvoices', 'allocations', 'unallocated', 'arReconcile'
+        ));
     }
 
     public function customerStore(Request $request)

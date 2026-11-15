@@ -153,20 +153,28 @@ class AccountingWorkspaceMetrics
     /** @return list<array<string, mixed>> */
     private function recentJournals(int $limit): array
     {
-        $rows = $this->baseJournalQuery()
+        $select = [
+            'journal_entries.transaction_number',
+            'journal_entries.transaction_type',
+            'journal_entries.name',
+            'journal_entries.date',
+            'journal_entries.debit',
+            'journal_entries.credit',
+        ];
+
+        $query = $this->baseJournalQuery()
             ->leftJoin('chart_of_accounts', 'chart_of_accounts.id', '=', 'journal_entries.chart_of_account_id')
             ->orderByDesc('journal_entries.date')
             ->orderByDesc('journal_entries.id')
-            ->limit($limit)
-            ->get([
-                'journal_entries.transaction_number',
-                'journal_entries.transaction_type',
-                'journal_entries.name',
-                'journal_entries.date',
-                'journal_entries.debit',
-                'journal_entries.credit',
-                'chart_of_accounts.name as account_name',
-            ]);
+            ->limit($limit);
+
+        if (Schema::hasColumn('chart_of_accounts', 'name')) {
+            $select[] = 'chart_of_accounts.name as account_name';
+        } elseif (Schema::hasColumn('chart_of_accounts', 'gl_code')) {
+            $select[] = 'chart_of_accounts.gl_code as account_name';
+        }
+
+        $rows = $query->get($select);
 
         return $rows->map(fn ($r) => [
             'transaction_number' => $r->transaction_number,
@@ -175,7 +183,7 @@ class AccountingWorkspaceMetrics
             'date' => $r->date,
             'debit' => (float) $r->debit,
             'credit' => (float) $r->credit,
-            'account_name' => $r->account_name,
+            'account_name' => $r->account_name ?? null,
         ])->all();
     }
 

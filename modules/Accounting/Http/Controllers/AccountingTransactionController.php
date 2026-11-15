@@ -131,9 +131,13 @@ class AccountingTransactionController extends Controller
                 journal_entries.credit,
                 journal_entries.source_type,
                 journal_entries.source_id,
-                chart_of_accounts.name as account_name,
+                ".(\Illuminate\Support\Facades\Schema::hasColumn('chart_of_accounts', 'name')
+                    ? 'chart_of_accounts.name as account_name,'
+                    : 'chart_of_accounts.gl_code as account_name,')."
                 chart_of_accounts.gl_code,
-                chart_of_accounts.account_type
+                ".(\Illuminate\Support\Facades\Schema::hasColumn('chart_of_accounts', 'account_type')
+                    ? 'chart_of_accounts.account_type'
+                    : "NULL as account_type")."
             ");
 
         $data = $query->limit(500)->get();

@@ -14,6 +14,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use App\Services\Accounting\ChartOfAccountHierarchyService;
 use Modules\Accounting\Entities\ChartOfAccount;
 use Yajra\DataTables\Facades\DataTables;
 use Maatwebsite\Excel\Facades\Excel;
@@ -187,11 +188,13 @@ class ChartOfAccountController extends Controller
         ]);
 
         try {
+            $parentId = $request->filled('parent_id') ? (int) $request->parent_id : null;
+            ChartOfAccountHierarchyService::assertValidParent(null, $parentId, (int) $businessId);
 
-            DB::transaction(function () use ($request) {
+            DB::transaction(function () use ($request, $parentId) {
                 $chart_of_account = new ChartOfAccount();
                 $chart_of_account->name = $request->name;
-                $chart_of_account->parent_id = $request->filled('parent_id') ? $request->parent_id : null;
+                $chart_of_account->parent_id = $parentId;
                 $chart_of_account->gl_code = $request->gl_code;
                 $chart_of_account->account_type = $request->account_type;
                 $chart_of_account->allow_manual = $request->allow_manual;
@@ -318,8 +321,16 @@ class ChartOfAccountController extends Controller
         ]);
 
         $chart_of_account = ChartOfAccount::findOrFail($id);
+        $parentId = $request->filled('parent_id') ? (int) $request->parent_id : null;
+
+        try {
+            ChartOfAccountHierarchyService::assertValidParent((int) $id, $parentId, (int) $businessId);
+        } catch (\Throwable $e) {
+            return (new FlashService())->onException($e)->redirectBackWithInput();
+        }
+
         $chart_of_account->name = $request->name;
-        $chart_of_account->parent_id = $request->filled('parent_id') ? $request->parent_id : null;
+        $chart_of_account->parent_id = $parentId;
         $chart_of_account->gl_code = $request->gl_code;
         $chart_of_account->account_type = $request->account_type;
         $chart_of_account->allow_manual = $request->allow_manual;
