@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Services\Accounting\AccountingPeriodService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -114,6 +115,8 @@ class AccountingService
         if ($debitAccountId === $creditAccountId) {
             throw new RuntimeException('Debit and credit accounts must be different.');
         }
+
+        AccountingPeriodService::assertOpenForDate($date, (int) ($extra['business_id'] ?? 0));
 
         return DB::transaction(function () use (
             $debitAccountId,
@@ -405,4 +408,214 @@ class AccountingService
         self::reverseEntry($oldTransactionNumber);
         return self::postEntry($debitAccountId, $creditAccountId, $amount, $date, $name, $reference, $transactionType, $extra);
     }
+
+    /**
+     * Post a multi-line balanced journal (2+ lines). Debit total MUST equal credit total.
+     *
+     * @param  array<int, array{account_id:int, debit?:float|int|string, credit?:float|int|string, memo?:string}>  $lines
+     * @return string shared transaction_number
+     */
+    public static function postMultiLine(
+        array $lines,
+        string $date,
+        string $name,
+        ?string $reference = null,
+        string $transactionType = 'manual_entry',
+        array $extra = [],
+        ?string $eventKey = null,
+        int $businessId = 0
+    ): string {
+        if (count($lines) < 2) {
+            throw new RuntimeException('Multi-line journal requires at least two lines.');
+        }
+
+        AccountingPeriodService::assertOpenForDate($date, $businessId);
+
+        $debitTotal = 0.0;
+        $creditTotal = 0.0;
+        $normalized = [];
+
+        foreach ($lines as $i => $line) {
+            $accountId = (int) ($line['account_id'] ?? 0);
+            if ($accountId <= 0) {
+                throw new RuntimeException('Line '.($i + 1).': account is required.');
+            }
+
+            $debit = isset($line['debit']) && is_numeric($line['debit']) ? round((float) $line['debit'], 2) : 0.0;
+            $credit = isset($line['credit']) && is_numeric($line['credit']) ? round((float) $line['credit'], 2) : 0.0;
+
+            if ($debit < 0 || $credit < 0) {
+                throw new RuntimeException('Line '.($i + 1).': amounts cannot be negative.');
+            }
+            if ($debit > 0 && $credit > 0) {
+                throw new RuntimeException('Line '.($i + 1).': cannot have both debit and credit.');
+            }
+            if ($debit == 0.0 && $credit == 0.0) {
+                throw new RuntimeException('Line '.($i + 1).': must have debit or credit.');
+            }
+
+            $debitTotal = round($debitTotal + $debit, 2);
+            $creditTotal = round($creditTotal + $credit, 2);
+            $normalized[] = [
+                'account_id' => $accountId,
+                'debit' => $debit,
+                'credit' => $credit,
+                'memo' => $line['memo'] ?? null,
+            ];
+        }
+
+        if (number_format($debitTotal, 2, '.', '') !== number_format($creditTotal, 2, '.', '')) {
+            throw new RuntimeException(
+                'Unbalanced multi-line journal: debit '.number_format($debitTotal, 2, '.', '')
+                .' != credit '.number_format($creditTotal, 2, '.', '')
+            );
+        }
+        if ($debitTotal <= 0) {
+            throw new RuntimeException('Journal total must be greater than zero.');
+        }
+
+        return DB::transaction(function () use (
+            $normalized,
+            $date,
+            $name,
+            $reference,
+            $transactionType,
+            $extra,
+            $eventKey,
+            $debitTotal
+        ) {
+            if ($eventKey && Schema::hasTable('accounting_postings')) {
+                $existing = DB::table('accounting_postings')
+                    ->where('event_key', $eventKey)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existing && ! $existing->reversed && $existing->transaction_number !== 'PENDING') {
+                    return $existing->transaction_number;
+                }
+
+                if (! $existing) {
+                    DB::table('accounting_postings')->insertOrIgnore([
+                        'event_key' => $eventKey,
+                        'transaction_number' => 'PENDING',
+                        'source_type' => $extra['source_type'] ?? 'manual_journal',
+                        'source_id' => $extra['source_id'] ?? 0,
+                        'event_type' => $transactionType,
+                        'amount' => $debitTotal,
+                        'reversed' => false,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+
+            $txnNumber = 'TXN-'.strtoupper(Str::random(8));
+            $month = date('n', strtotime($date));
+            $year = date('Y', strtotime($date));
+            $now = now();
+
+            $base = array_merge([
+                'transaction_number' => $txnNumber,
+                'transaction_type' => $transactionType,
+                'name' => $name,
+                'date' => $date,
+                'month' => $month,
+                'year' => $year,
+                'reference' => $reference,
+                'active' => 1,
+                'reversed' => 0,
+                'reversible' => 1,
+                'manual_entry' => 1,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ], $extra);
+
+            if (Schema::hasColumn('journal_entries', 'created_by_id') && ! array_key_exists('created_by_id', $base)) {
+                $base['created_by_id'] = auth()->id();
+            }
+
+            foreach ($normalized as $line) {
+                $row = array_merge($base, [
+                    'chart_of_account_id' => $line['account_id'],
+                    'debit' => $line['debit'],
+                    'credit' => $line['credit'],
+                ]);
+                if ($line['memo'] && Schema::hasColumn('journal_entries', 'notes')) {
+                    $row['notes'] = $line['memo'];
+                }
+                DB::table('journal_entries')->insert($row);
+            }
+
+            if ($eventKey && Schema::hasTable('accounting_postings')) {
+                DB::table('accounting_postings')->updateOrInsert(
+                    ['event_key' => $eventKey],
+                    [
+                        'transaction_number' => $txnNumber,
+                        'source_type' => $extra['source_type'] ?? 'manual_journal',
+                        'source_id' => $extra['source_id'] ?? 0,
+                        'event_type' => $transactionType,
+                        'amount' => $debitTotal,
+                        'reversed' => false,
+                        'updated_at' => now(),
+                    ]
+                );
+            }
+
+            return $txnNumber;
+        });
+    }
+
+    /**
+     * Create reversing journal lines for a posted transaction_number (keeps original rows, marks reversed).
+     * Returns the new reversing transaction_number.
+     */
+    public static function reverseTransaction(string $transactionNumber, ?string $date = null, ?int $userId = null): string
+    {
+        if ($transactionNumber === '' || $transactionNumber === 'PENDING') {
+            throw new RuntimeException('Invalid transaction number for reversal.');
+        }
+
+        return DB::transaction(function () use ($transactionNumber, $date, $userId) {
+            $rows = DB::table('journal_entries')
+                ->where('transaction_number', $transactionNumber)
+                ->where('reversed', 0)
+                ->lockForUpdate()
+                ->get();
+
+            if ($rows->isEmpty()) {
+                throw new RuntimeException('No live journal rows found to reverse.');
+            }
+
+            $lines = [];
+            foreach ($rows as $row) {
+                $lines[] = [
+                    'account_id' => (int) $row->chart_of_account_id,
+                    'debit' => (float) $row->credit,
+                    'credit' => (float) $row->debit,
+                    'memo' => 'Reversal of '.$transactionNumber,
+                ];
+            }
+
+            $postDate = $date ?: (string) ($rows->first()->date ?? date('Y-m-d'));
+            $revTxn = self::postMultiLine(
+                $lines,
+                $postDate,
+                'Reversal of '.$transactionNumber,
+                $transactionNumber,
+                'reversal',
+                [
+                    'manual_entry' => 1,
+                    'created_by_id' => $userId,
+                    'source_type' => 'reversal',
+                    'source_id' => 0,
+                ],
+                'reversal:'.$transactionNumber
+            );
+
+            self::reverseEntry($transactionNumber);
+
+            return $revTxn;
+        });
+    }
 }
+

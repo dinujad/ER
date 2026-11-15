@@ -14,6 +14,7 @@ class ChartOfAccount extends Model
         'parent_id',
         'gl_code',
         'account_type',
+        'normal_balance',
         'allow_manual',
         'active',
         'notes',
@@ -76,6 +77,11 @@ class ChartOfAccount extends Model
         return $this->belongsTo(ChartOfAccount::class, 'parent_id')->withDefault([
             'name' => trans('accounting::lang.none')
         ]);
+    }
+
+    public function children()
+    {
+        return $this->hasMany(ChartOfAccount::class, 'parent_id');
     }
 
     /**

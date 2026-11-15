@@ -85,6 +85,60 @@ Route::group(['middleware' => ['web', 'auth', 'accounting.session', 'accounting.
         Route::post('undo', 'ReconcileController@undo_reconcile');
     });
 
+    // Phase 2 — Manual multi-line journals
+    Route::prefix('manual-journals')->group(function () {
+        Route::get('/', 'ManualJournalController@index');
+        Route::get('approvals', 'ManualJournalController@approvalQueue');
+        Route::get('create', 'ManualJournalController@create');
+        Route::post('/', 'ManualJournalController@store');
+        Route::get('{id}', 'ManualJournalController@show');
+        Route::get('{id}/edit', 'ManualJournalController@edit');
+        Route::post('{id}', 'ManualJournalController@update');
+        Route::post('{id}/submit', 'ManualJournalController@submit');
+        Route::post('{id}/approve', 'ManualJournalController@approve');
+        Route::post('{id}/reject', 'ManualJournalController@reject');
+        Route::post('{id}/post', 'ManualJournalController@post');
+        Route::post('{id}/reverse', 'ManualJournalController@reverse');
+    });
+
+    // Phase 2 — Account register
+    Route::prefix('account-register')->group(function () {
+        Route::get('/', 'AccountRegisterController@index');
+        Route::get('export', 'AccountRegisterController@exportCsv');
+        Route::get('{accountId}', 'AccountRegisterController@show');
+    });
+
+    // Phase 2 — Periods
+    Route::prefix('periods')->group(function () {
+        Route::get('/', 'AccountingPeriodController@index');
+        Route::post('/', 'AccountingPeriodController@store');
+        Route::post('{id}/close', 'AccountingPeriodController@close');
+        Route::post('{id}/reopen', 'AccountingPeriodController@reopen');
+    });
+
+    // Phase 2 — Bank statement imports
+    Route::prefix('bank-statements')->group(function () {
+        Route::get('/', 'BankStatementController@index');
+        Route::post('/', 'BankStatementController@store');
+        Route::get('{id}', 'BankStatementController@show');
+    });
+
+    // Phase 2 — AR / AP ledgers
+    Route::get('receivables/customer-ledger', 'CustomerLedgerController@index');
+    Route::get('payables/supplier-ledger', 'SupplierLedgerController@index');
+
+    // Phase 2 — Recurring
+    Route::prefix('recurring-journals')->group(function () {
+        Route::get('/', 'RecurringJournalController@index');
+        Route::get('create', 'RecurringJournalController@create');
+        Route::post('/', 'RecurringJournalController@store');
+        Route::post('{id}/pause', 'RecurringJournalController@pause');
+        Route::post('{id}/resume', 'RecurringJournalController@resume');
+        Route::post('{id}/run', 'RecurringJournalController@runNow');
+    });
+
+    Route::get('audit-log', 'AccountingAuditController@index');
+
     //Settings
     Route::prefix('settings')->group(function () {
 

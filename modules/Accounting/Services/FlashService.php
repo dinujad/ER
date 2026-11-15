@@ -8,7 +8,7 @@ class FlashService
 {
     public function onException($e, $message = null)
     {
-        $message = $message ?: trans_choice('accounting::core.an_error_occurred', 1);
+        $message = $message ?: ($e->getMessage() ?: trans_choice('accounting::core.an_error_occurred', 1));
         Log::error("File:" . $e->getFile() . " Line:" . $e->getLine() . " Message:" . $e->getMessage());
         request()->session()->flash('error', $message);
         return $this;

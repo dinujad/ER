@@ -350,6 +350,23 @@ class ChartOfAccountController extends Controller
     public function destroy($id)
     {
         $chart_of_account = ChartOfAccount::forBusiness(session('business.id'))->findOrFail($id);
+
+        if ($chart_of_account->journal_entries()->exists()) {
+            (new FlashService())->onWarning(
+                'Cannot delete account with journal history. Deactivate it instead.'
+            );
+
+            return redirect()->back();
+        }
+
+        if ($chart_of_account->children()->exists()) {
+            (new FlashService())->onWarning(
+                'Cannot delete account that has child accounts. Reassign or remove children first.'
+            );
+
+            return redirect()->back();
+        }
+
         $chart_of_account->delete();
         activity()->on($chart_of_account)
             ->withProperties(['id' => $chart_of_account->id])

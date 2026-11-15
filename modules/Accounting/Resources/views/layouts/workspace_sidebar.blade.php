@@ -20,35 +20,70 @@
             <i class="bi bi-speedometer2"></i> Overview
         </a>
 
-        <div class="acct-ws-section">Accounts</div>
+        <div class="acct-ws-section">Chart of Accounts</div>
         <a href="{{ url('accounting/chart_of_account') }}" class="acct-ws-link {{ request()->is('accounting/chart_of_account*') ? 'active' : '' }}">
-            <i class="bi bi-diagram-3"></i> Chart of Accounts
+            <i class="bi bi-diagram-3"></i> All Accounts
+        </a>
+        <a href="{{ url('accounting/account-register') }}" class="acct-ws-link {{ request()->is('accounting/account-register*') ? 'active' : '' }}">
+            <i class="bi bi-list-ol"></i> Account Register
         </a>
 
-        <div class="acct-ws-section">Transactions</div>
+        <div class="acct-ws-section">Journal Entries</div>
         <a href="{{ url('accounting/journal_entry') }}" class="acct-ws-link {{ request()->is('accounting/journal_entry*') ? 'active' : '' }}">
-            <i class="bi bi-journal-text"></i> Journal Entries
+            <i class="bi bi-journal-text"></i> All Journals
+        </a>
+        <a href="{{ url('accounting/manual-journals') }}" class="acct-ws-link {{ request()->is('accounting/manual-journals*') && !request()->is('accounting/manual-journals/approvals') ? 'active' : '' }}">
+            <i class="bi bi-journal-plus"></i> Multi-line Journals
+        </a>
+        <a href="{{ url('accounting/manual-journals/create') }}" class="acct-ws-link">
+            <i class="bi bi-plus-square"></i> New Journal
+        </a>
+        <a href="{{ url('accounting/manual-journals?status=draft') }}" class="acct-ws-link">
+            <i class="bi bi-pencil-square"></i> Draft Journals
+        </a>
+        <a href="{{ url('accounting/manual-journals/approvals') }}" class="acct-ws-link {{ request()->is('accounting/manual-journals/approvals') ? 'active' : '' }}">
+            <i class="bi bi-check2-square"></i> Approval Queue
+        </a>
+        <a href="{{ url('accounting/recurring-journals') }}" class="acct-ws-link {{ request()->is('accounting/recurring-journals*') ? 'active' : '' }}">
+            <i class="bi bi-arrow-repeat"></i> Recurring Journals
         </a>
         <a href="{{ url('accounting/transactions/sales') }}" class="acct-ws-link {{ request()->is('accounting/transactions*') ? 'active' : '' }}">
             <i class="bi bi-arrow-left-right"></i> ERP Transactions
         </a>
         <a href="{{ url('accounting/transfers') }}" class="acct-ws-link {{ request()->is('accounting/transfers*') ? 'active' : '' }}">
-            <i class="bi bi-arrow-repeat"></i> Transfers
+            <i class="bi bi-shuffle"></i> Transfers
         </a>
 
         <div class="acct-ws-section">Banking</div>
         <a href="{{ url('accounting/reconcile') }}" class="acct-ws-link {{ request()->is('accounting/reconcile*') ? 'active' : '' }}">
-            <i class="bi bi-bank"></i> Reconciliation
+            <i class="bi bi-bank"></i> Bank Reconciliation
+        </a>
+        <a href="{{ url('accounting/bank-statements') }}" class="acct-ws-link {{ request()->is('accounting/bank-statements*') ? 'active' : '' }}">
+            <i class="bi bi-file-earmark-spreadsheet"></i> Statement Imports
         </a>
 
         <div class="acct-ws-section">Receivables</div>
+        <a href="{{ url('accounting/receivables/customer-ledger') }}" class="acct-ws-link {{ request()->is('accounting/receivables*') ? 'active' : '' }}">
+            <i class="bi bi-people"></i> Customer Ledger
+        </a>
         <a href="{{ url('report/accounting/accounts_receivable_ageing_summary') }}" class="acct-ws-link {{ request()->is('report/accounting/accounts_receivable*') ? 'active' : '' }}">
-            <i class="bi bi-people"></i> AR Ageing
+            <i class="bi bi-calendar3"></i> AR Ageing
         </a>
 
         <div class="acct-ws-section">Payables</div>
+        <a href="{{ url('accounting/payables/supplier-ledger') }}" class="acct-ws-link {{ request()->is('accounting/payables*') ? 'active' : '' }}">
+            <i class="bi bi-building"></i> Supplier Ledger
+        </a>
         <a href="{{ url('report/accounting/accounts_payable_ageing_summary') }}" class="acct-ws-link {{ request()->is('report/accounting/accounts_payable*') ? 'active' : '' }}">
-            <i class="bi bi-building"></i> AP Ageing
+            <i class="bi bi-calendar3"></i> AP Ageing
+        </a>
+
+        <div class="acct-ws-section">Accounting Controls</div>
+        <a href="{{ url('accounting/periods') }}" class="acct-ws-link {{ request()->is('accounting/periods*') ? 'active' : '' }}">
+            <i class="bi bi-lock"></i> Accounting Periods
+        </a>
+        <a href="{{ url('accounting/audit-log') }}" class="acct-ws-link {{ request()->is('accounting/audit-log*') ? 'active' : '' }}">
+            <i class="bi bi-shield-check"></i> Audit Log
         </a>
 
         <div class="acct-ws-section">Financial Reports</div>
