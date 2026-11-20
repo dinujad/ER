@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class PurchasePayment extends Model
 {
+    use \App\Models\Concerns\Auditable;
+
     use HasFactory;
 
     const ENTRY_PAYMENT = 'payment';
@@ -67,5 +69,10 @@ class PurchasePayment extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function auditLabel(): string
+    {
+        return 'Supplier payment #' . $this->getKey();
     }
 }

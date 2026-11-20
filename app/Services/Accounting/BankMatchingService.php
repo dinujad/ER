@@ -281,7 +281,13 @@ class BankMatchingService
             $q->where('id', '!=', $exceptLineId);
         }
 
-        return $q->exists();
+        if ($q->exists()) {
+            return true;
+        }
+
+        // Phase 7 — one bank line matched to several transactions.
+        return \Illuminate\Support\Facades\Schema::hasTable('bank_statement_line_matches')
+            && DB::table('bank_statement_line_matches')->where('source_type', $type)->where('source_id', $id)->exists();
     }
 
     /**

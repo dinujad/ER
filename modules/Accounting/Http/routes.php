@@ -314,6 +314,94 @@ Route::group(['middleware' => ['web', 'auth', 'accounting.session', 'accounting.
         Route::post('settings', 'AiSettingsController@update');
     });
 
+    // Phase 6 — Xero / QuickBooks parity: audit trail, document drill-down, VAT, AR, AP, controls
+    Route::prefix('phase6')->group(function () {
+        // 6.1 Audit trail
+        Route::get('audit-trail', 'AuditTrailController@index');
+        Route::get('audit-trail/document/{type}/{id}', 'AuditTrailController@document')->whereNumber('id');
+
+        // 6.2 Invoice drill-down & journal drill-down
+        Route::get('invoices', 'SalesInvoiceController@index');
+        Route::get('invoices/{order}', 'SalesInvoiceController@show')->whereNumber('order');
+        Route::get('journal/{transactionNumber}', 'JournalDrilldownController@transaction')->where('transactionNumber', '[A-Za-z0-9\-_:.]+');
+        Route::get('account-transactions', 'JournalDrilldownController@accountTransactions');
+
+        // 6.3 VAT engine
+        Route::get('vat-return', 'VatReturnController@index');
+        Route::get('vat-return/{section}', 'VatReturnController@detail')->where('section', 'sales|returns|credit_notes|bills|bill_returns');
+        Route::get('tax-invoice-register', 'VatReturnController@register');
+
+        // 6.4 Receivables
+        Route::get('credit-notes', 'CreditNoteController@index');
+        Route::get('credit-notes/create', 'CreditNoteController@create');
+        Route::post('credit-notes', 'CreditNoteController@store');
+        Route::get('credit-notes/{id}/pdf', 'CreditNoteController@pdf')->whereNumber('id');
+        Route::post('credit-notes/{id}/void', 'CreditNoteController@void')->whereNumber('id');
+        Route::get('receivables/overdue', 'ReceivablesController@overdue');
+        Route::post('receivables/reminders', 'ReceivablesController@bulkReminders');
+        Route::post('invoices/{order}/reminder', 'ReceivablesController@reminder')->whereNumber('order');
+        Route::post('invoices/{order}/void', 'ReceivablesController@void')->whereNumber('order');
+
+        // 6.5 Payables
+        Route::get('bills', 'BillController@index');
+        Route::get('bills/payment-run', 'BillController@paymentRun');
+        Route::get('bills/{purchase}', 'BillController@show')->whereNumber('purchase');
+        Route::post('bills/{purchase}/approve', 'BillController@approve')->whereNumber('purchase');
+
+        // 6.6 Controls
+        Route::get('recode', 'RecodeController@index');
+        Route::post('recode', 'RecodeController@store');
+        Route::get('search', 'GlobalSearchController@index');
+    });
+
+    // Bank accounts — add → import (preview) → review → reconcile → history → settings
+    Route::prefix('banking')->group(function () {
+        Route::get('/', 'BankAccountController@index');
+        Route::get('create', 'BankAccountController@create');
+        Route::post('/', 'BankAccountController@store');
+        Route::get('{id}', 'BankAccountController@show')->whereNumber('id');
+        Route::post('{id}/import/preview', 'BankAccountController@importPreview')->whereNumber('id');
+        Route::post('{id}/import/confirm', 'BankAccountController@importConfirm')->whereNumber('id');
+        Route::post('{id}/reconcile', 'BankAccountController@reconcileFinish')->whereNumber('id');
+        Route::get('{id}/reconciliations/{recId}', 'BankAccountController@reconciliation')->whereNumber('id')->whereNumber('recId');
+        Route::post('{id}/reconciliations/{recId}/undo', 'BankAccountController@undoReconciliation')->whereNumber('id')->whereNumber('recId');
+        Route::post('{id}/settings', 'BankAccountController@updateSettings')->whereNumber('id');
+        Route::post('{id}/archive', 'BankAccountController@archive')->whereNumber('id');
+        Route::post('{id}/restore', 'BankAccountController@restore')->whereNumber('id');
+        Route::post('{id}/disconnect-feed', 'BankAccountController@disconnectFeed')->whereNumber('id');
+    });
+
+    // Phase 7 — reconciliation workspace, payment runs, month-end close, reminders, recurring queue
+    Route::prefix('phase7')->group(function () {
+        Route::get('reconcile', 'BankReconciliationController@index');
+        Route::post('reconcile/import', 'BankReconciliationController@import');
+        Route::post('reconcile/imports/{importId}/balance', 'BankReconciliationController@saveBalance')->whereNumber('importId');
+        Route::post('reconcile/lines/{lineId}/match', 'BankReconciliationController@match')->whereNumber('lineId');
+        Route::post('reconcile/lines/{lineId}/unmatch', 'BankReconciliationController@unmatch')->whereNumber('lineId');
+        Route::post('reconcile/lines/{lineId}/exclude', 'BankReconciliationController@exclude')->whereNumber('lineId');
+        Route::post('reconcile/lines/{lineId}/post', 'BankReconciliationController@postLine')->whereNumber('lineId');
+        Route::post('reconcile/lines/{lineId}/transfer', 'BankReconciliationController@transferLine')->whereNumber('lineId');
+
+        Route::get('payment-runs', 'PaymentRunController@index');
+        Route::post('payment-runs', 'PaymentRunController@store');
+        Route::get('payment-runs/{id}', 'PaymentRunController@show')->whereNumber('id');
+        Route::post('payment-runs/{id}/approve', 'PaymentRunController@approve')->whereNumber('id');
+        Route::get('payment-runs/{id}/export', 'PaymentRunController@export')->whereNumber('id');
+        Route::post('payment-runs/{id}/items/{itemId}/fail', 'PaymentRunController@fail')->whereNumber('id')->whereNumber('itemId');
+        Route::post('payment-runs/{id}/confirm', 'PaymentRunController@confirm')->whereNumber('id');
+        Route::post('payment-runs/{id}/cancel', 'PaymentRunController@cancel')->whereNumber('id');
+
+        Route::get('close', 'MonthEndCloseController@index');
+        Route::post('close/{key}/sign-off', 'MonthEndCloseController@signOff')->where('key', '\d{4}-\d{2}');
+        Route::post('close/{key}/lock', 'MonthEndCloseController@lock')->where('key', '\d{4}-\d{2}');
+        Route::post('close/{key}/reopen', 'MonthEndCloseController@reopen')->where('key', '\d{4}-\d{2}');
+
+        Route::get('reminders', 'ReceivablesAutomationController@reminders');
+        Route::post('reminders/run', 'ReceivablesAutomationController@runReminders');
+        Route::get('recurring-queue', 'ReceivablesAutomationController@recurringQueue');
+        Route::post('recurring-queue/{runId}/retry', 'ReceivablesAutomationController@retry')->whereNumber('runId');
+    });
+
     // Phase 3 — Advanced budgeting
     Route::prefix('budget-versions')->group(function () {
         Route::get('/', 'AdvancedBudgetController@index');

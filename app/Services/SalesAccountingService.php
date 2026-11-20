@@ -26,12 +26,13 @@ class SalesAccountingService
 
         if ($replaceExisting) {
             AccountingService::reverseEvent($saleEvent);
+            $this->reverseOrderTaxEvents($order->getKey());
             AccountingService::reverseEvent($cogsEvent);
         }
 
         $reference = $order->invoice_number ?: $order->order_number ?: "Order #{$order->getKey()}";
         $date = $this->dateString($order->order_date);
-        $saleAmount = round((float) $order->total_amount, 2);
+        $saleAmount = $order->goodsValue();
 
         if ($saleAmount > 0) {
             $arId = AccountingService::accountId(AccountingService::GL_ACCOUNTS_RECV);
@@ -54,6 +55,36 @@ class SalesAccountingService
             } else {
                 $this->missingAccounts('order sale', $order->getKey());
             }
+        }
+
+        // SSCL + VAT billed on top of the goods value: customer owes it (AR), business owes it to IRD.
+        // Separate accounts (2320 SSCL, 2310 VAT output) feed the SSCL and VAT returns; 2300 is the fallback.
+        foreach ([
+            'sscl' => [round((float) ($order->invoice_sscl_amount ?? 0), 2), AccountingService::GL_SSCL_PAYABLE, 'SSCL on sale', 'sale_sscl'],
+            'vat' => [round((float) ($order->invoice_vat_amount ?? 0), 2), AccountingService::GL_VAT_OUTPUT, 'Output VAT on sale', 'sale_vat'],
+        ] as $kind => [$amount, $glCode, $label, $type]) {
+            if ($amount <= 0) {
+                continue;
+            }
+            $arId = AccountingService::accountId(AccountingService::GL_ACCOUNTS_RECV);
+            $taxId = AccountingService::accountId($glCode) ?? AccountingService::accountId(AccountingService::GL_TAX_PAYABLE);
+            if (!$arId || !$taxId) {
+                $this->missingAccounts("order {$kind}", $order->getKey());
+                continue;
+            }
+            AccountingService::postOnce(
+                "order:{$order->getKey()}:{$kind}",
+                Order::class,
+                $order->getKey(),
+                $arId,
+                $taxId,
+                $amount,
+                $date,
+                "{$label} — {$reference}",
+                $reference,
+                $type,
+                ['order_id' => $order->getKey()]
+            );
         }
 
         $cogsAmount = round($order->items->sum(
@@ -96,6 +127,7 @@ class SalesAccountingService
     public function reverseOrder(int $orderId): void
     {
         AccountingService::reverseEvent($this->orderSaleEvent($orderId));
+        $this->reverseOrderTaxEvents($orderId);
         AccountingService::reverseEvent($this->orderCogsEvent($orderId));
     }
 
@@ -174,6 +206,7 @@ class SalesAccountingService
 
         if ($replaceExisting) {
             AccountingService::reverseEvent($salesEvent);
+            $this->reverseSaleReturnTaxEvents($saleReturn->getKey());
             AccountingService::reverseEvent($cogsEvent);
         }
 
@@ -181,7 +214,18 @@ class SalesAccountingService
         $date = $this->dateString($saleReturn->return_date);
         $returnAmount = round((float) $saleReturn->total, 2);
 
-        if ($returnAmount > 0) {
+        // Returned goods carry their share of the SSCL + VAT on the original invoice; the rest is revenue.
+        $returnOrder = $saleReturn->relationLoaded('order')
+            ? $saleReturn->order
+            : ($saleReturn->order_id && \Illuminate\Support\Facades\Schema::hasTable('orders')
+                ? Order::query()->find($saleReturn->order_id)
+                : null);
+        $shares = $this->returnTaxShares($returnOrder, $returnAmount);
+        $revenueAmount = $returnOrder && $returnOrder->chargesInvoiceTax()
+            ? round($returnOrder->withInvoiceTax($returnAmount) - $shares['sscl'] - $shares['vat'], 2)
+            : $returnAmount;
+
+        if ($revenueAmount > 0) {
             $salesReturnsId = AccountingService::accountId(AccountingService::GL_SALES_RETURNS);
             $arId = AccountingService::accountId(AccountingService::GL_ACCOUNTS_RECV);
 
@@ -192,7 +236,7 @@ class SalesAccountingService
                     $saleReturn->getKey(),
                     $salesReturnsId,
                     $arId,
-                    $returnAmount,
+                    $revenueAmount,
                     $date,
                     "Sale return — {$reference}",
                     $reference,
@@ -202,6 +246,32 @@ class SalesAccountingService
             } else {
                 $this->missingAccounts('sale return', $saleReturn->getKey());
             }
+        }
+
+        foreach ($shares as $kind => $amount) {
+            if ($amount <= 0) {
+                continue;
+            }
+            $glCode = $kind === 'sscl' ? AccountingService::GL_SSCL_PAYABLE : AccountingService::GL_VAT_OUTPUT;
+            $taxId = AccountingService::accountId($glCode) ?? AccountingService::accountId(AccountingService::GL_TAX_PAYABLE);
+            $arId = AccountingService::accountId(AccountingService::GL_ACCOUNTS_RECV);
+            if (!$taxId || !$arId) {
+                $this->missingAccounts("sale return {$kind}", $saleReturn->getKey());
+                continue;
+            }
+            AccountingService::postOnce(
+                "sale-return:{$saleReturn->getKey()}:{$kind}",
+                SaleReturn::class,
+                $saleReturn->getKey(),
+                $taxId,
+                $arId,
+                $amount,
+                $date,
+                ($kind === 'sscl' ? 'SSCL' : 'Output VAT') . " reversed on sale return — {$reference}",
+                $reference,
+                $kind === 'sscl' ? 'sale_return_sscl' : 'sale_return_vat',
+                ['order_id' => $saleReturn->order_id]
+            );
         }
 
         $returnedCost = round($saleReturn->items->sum(
@@ -246,6 +316,7 @@ class SalesAccountingService
     public function reverseSaleReturn(int $saleReturnId): void
     {
         AccountingService::reverseEvent($this->saleReturnRevenueEvent($saleReturnId));
+        $this->reverseSaleReturnTaxEvents($saleReturnId);
         AccountingService::reverseEvent($this->saleReturnCogsEvent($saleReturnId));
     }
 
@@ -323,6 +394,40 @@ class SalesAccountingService
     private function orderSaleEvent(int $id): string
     {
         return "order:{$id}:sale";
+    }
+
+    /**
+     * SSCL and VAT share of a returned goods amount, so that goods + shares = the billed value of the return.
+     *
+     * @return array{sscl: float, vat: float}
+     */
+    public function returnTaxShares(?Order $order, float $returnGoods): array
+    {
+        if (!$order || $returnGoods <= 0 || !$order->chargesInvoiceTax() || (float) $order->total_amount <= 0) {
+            return ['sscl' => 0.0, 'vat' => 0.0];
+        }
+        // Same share of each tax as the returned item value is of the item total (works for added and included tax).
+        $share = $returnGoods / (float) $order->total_amount;
+
+        return [
+            'sscl' => round((float) $order->invoice_sscl_amount * $share, 2),
+            'vat' => round((float) $order->invoice_vat_amount * $share, 2),
+        ];
+    }
+
+    /** Includes the pre-6.3 combined key so re-syncs never double count. */
+    private function reverseOrderTaxEvents(int $id): void
+    {
+        foreach (['sale-tax', 'sscl', 'vat'] as $kind) {
+            AccountingService::reverseEvent("order:{$id}:{$kind}");
+        }
+    }
+
+    private function reverseSaleReturnTaxEvents(int $id): void
+    {
+        foreach (['tax', 'sscl', 'vat'] as $kind) {
+            AccountingService::reverseEvent("sale-return:{$id}:{$kind}");
+        }
     }
 
     private function orderCogsEvent(int $id): string

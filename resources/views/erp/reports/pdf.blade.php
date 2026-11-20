@@ -154,7 +154,7 @@
             @foreach($data['orders'] ?? [] as $o)
                 @php
                     $paid = (float) ($o->payments_sum_amount ?? 0);
-                    $total = (float) ($o->total_amount ?? 0);
+                    $total = $o->invoice_total;
                     $isWholesale = $o->salesPerson && $o->salesPerson->role === 'sales_person';
                 @endphp
                 <tr>

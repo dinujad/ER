@@ -149,6 +149,11 @@
                             <a href="{{ route('orders.invoice', $order->id) }}" class="btn btn-primary btn-sm">
                                 Download Invoice
                             </a>
+                            @if(auth()->user()?->isSystemAdmin() || auth()->user()?->can_access('accounting.view'))
+                            <a href="{{ url('accounting/phase6/invoices/' . $order->id) }}" class="btn btn-outline-dark btn-sm" title="Lines, tax, payments, journal entries and history">
+                                <i class="bi bi-journal-text"></i> Accounting view
+                            </a>
+                            @endif
                         @endif
                         @if($order->canAcceptSaleReturn() && $order->items->contains(fn ($i) => $i->returnableQuantity() > 0))
                             <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#saleReturnModal">
@@ -257,6 +262,20 @@
                             <th colspan="6" class="text-end">Net Total:</th>
                             <th>{{ number_format($order->total_amount, 2) }}</th>
                         </tr>
+                        @if($order->chargesInvoiceTax())
+                        <tr>
+                            <th colspan="6" class="text-end">SSCL:</th>
+                            <th>{{ number_format((float) $order->invoice_sscl_amount, 2) }}</th>
+                        </tr>
+                        <tr>
+                            <th colspan="6" class="text-end">VAT:</th>
+                            <th>{{ number_format((float) $order->invoice_vat_amount, 2) }}</th>
+                        </tr>
+                        <tr>
+                            <th colspan="6" class="text-end">Invoice Total (incl. SSCL &amp; VAT):</th>
+                            <th>{{ number_format($order->invoice_total, 2) }}</th>
+                        </tr>
+                        @endif
                         <tr>
                             <th colspan="6" class="text-end">Issued Bags Count:</th>
                             <th>{{ $order->issued_bags_count ?? '—' }}</th>
@@ -272,7 +291,7 @@
                         @if($order->total_returned > 0)
                         <tr>
                             <th colspan="6" class="text-end text-warning">Sale returns:</th>
-                            <th class="text-warning">-{{ number_format($order->total_returned, 2) }}</th>
+                            <th class="text-warning">-{{ number_format($order->total_returned_billed, 2) }}</th>
                         </tr>
                         <tr>
                             <th colspan="6" class="text-end">Net after returns:</th>
@@ -320,6 +339,28 @@
             </ul>
         </div>
         @endif
+
+        <!-- Document history (audit trail) -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> History</h5>
+                <span class="small text-muted">Who created, edited, issued, printed or paid this order</span>
+            </div>
+            <div class="card-body">
+                @php
+                    $historyLogs = \Illuminate\Support\Facades\Schema::hasTable('audit_logs')
+                        ? \App\Models\AuditLog::query()
+                            ->where(function ($q) use ($order) {
+                                $q->where(fn ($w) => $w->where('auditable_type', \App\Models\Order::class)->where('auditable_id', $order->id))
+                                  ->orWhere(fn ($w) => $w->where('auditable_type', \App\Models\Payment::class)->whereIn('auditable_id', $order->payments->pluck('id')))
+                                  ->orWhere(fn ($w) => $w->where('auditable_type', \App\Models\OrderItem::class)->whereIn('auditable_id', $order->items->pluck('id')));
+                            })
+                            ->orderByDesc('id')->limit(100)->get()
+                        : collect();
+                @endphp
+                @include('accounting::phase6.partials.history', ['logs' => $historyLogs])
+            </div>
+        </div>
 
         <!-- Payment History -->
         <div class="card">

@@ -7,11 +7,14 @@ use Illuminate\Database\Eloquent\Model;
 
 class Supplier extends Model
 {
+    use \App\Models\Concerns\Auditable;
+
     use HasFactory;
 
     protected $fillable = [
         'code', 'name', 'company_name', 'phone', 'email', 'address',
-        'tax_vat_no', 'opening_balance', 'status', 'notes',
+        'tax_vat_no', 'opening_balance', 'status', 'notes', 'payment_terms_days',
+        'bank_account_name', 'bank_account_no', 'bank_name', 'bank_code', 'branch_code',
     ];
 
     protected $casts = [
@@ -66,5 +69,10 @@ class Supplier extends Model
         $last = static::orderByDesc('id')->first();
         $num = $last ? ((int) preg_replace('/\D/', '', $last->code)) + 1 : 1;
         return 'SUP-' . str_pad((string) $num, 4, '0', STR_PAD_LEFT);
+    }
+
+    public function auditLabel(): string
+    {
+        return 'Supplier ' . ($this->company_name ?: $this->name ?: '#' . $this->getKey());
     }
 }

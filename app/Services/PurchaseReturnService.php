@@ -115,6 +115,38 @@ class PurchaseReturnService
         }
     }
 
+    /**
+     * Phase 6.3 — returned goods on a VAT-claimed bill also give back their input VAT:
+     * Dr Accounts payable / Cr VAT Input.
+     */
+    public static function postInputVatReversal(PurchaseReturn $return): void
+    {
+        $purchase = $return->purchase;
+        $vat = $purchase ? $purchase->returnedInputVat((float) $return->total) : 0.0;
+        if ($vat <= 0) {
+            return;
+        }
+        $payableId = AccountingService::accountId(AccountingService::GL_ACCOUNTS_PAY);
+        $vatInputId = AccountingService::accountId(AccountingService::GL_VAT_INPUT)
+            ?? AccountingService::accountId(AccountingService::GL_TAX_RECEIVABLE);
+        if (!$payableId || !$vatInputId) {
+            return;
+        }
+
+        AccountingService::postOnce(
+            "purchase-return:{$return->id}:input-vat",
+            PurchaseReturn::class,
+            (int) $return->id,
+            $payableId,
+            $vatInputId,
+            $vat,
+            $return->return_date->format('Y-m-d'),
+            'Input VAT reversed on purchase return – ' . ($purchase->purchase_no ?? ''),
+            $return->return_no,
+            'purchase_return_vat'
+        );
+    }
+
     protected function postAccountingReturn(PurchaseReturn $return): void
     {
         try {
@@ -141,6 +173,7 @@ class PurchaseReturnService
             if ($txn) {
                 $return->updateQuietly(['accounting_txn_number' => $txn]);
             }
+            self::postInputVatReversal($return);
         } catch (\Throwable $e) {
             Log::error('PurchaseReturnService: accounting post failed', [
                 'return_id' => $return->id,

@@ -43,10 +43,10 @@ class OrderPaymentManagementController extends Controller
 
         if ($request->get('payment_state') === 'due') {
             $paidSub = \App\Models\Order::effectivePaidAmountSubquery();
-            $query->whereRaw("total_amount > {$paidSub}");
+            $query->whereRaw(\App\Models\Order::invoiceTotalSql() . " > {$paidSub}");
         } elseif ($request->get('payment_state') === 'paid') {
             $paidSub = \App\Models\Order::effectivePaidAmountSubquery();
-            $query->whereRaw("total_amount <= {$paidSub}");
+            $query->whereRaw(\App\Models\Order::invoiceTotalSql() . " <= {$paidSub}");
         }
 
         $orders = (clone $query)
@@ -56,16 +56,16 @@ class OrderPaymentManagementController extends Controller
 
         $summaryRows = (clone $query)
             ->withSum(['payments as payments_sum_amount' => fn ($q) => $q->effectiveForOrderPaid()], 'amount')
-            ->get(['orders.id', 'orders.total_amount']);
+            ->get(['orders.id', 'orders.total_amount', 'orders.invoice_sscl_amount', 'orders.invoice_vat_amount']);
         $ordersWithDue = $summaryRows->filter(function ($order) {
             $paid = (float) ($order->payments_sum_amount ?? 0);
 
-            return ((float) $order->total_amount - $paid) > 0.00001;
+            return ($order->invoice_total - $paid) > 0.00001;
         });
         $totalOutstanding = (float) $ordersWithDue->sum(function ($order) {
             $paid = (float) ($order->payments_sum_amount ?? 0);
 
-            return max(0, (float) $order->total_amount - $paid);
+            return max(0, $order->invoice_total - $paid);
         });
         $dueOrderCount = $ordersWithDue->count();
 

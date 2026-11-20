@@ -14,6 +14,8 @@ class SaleReturnObserver
             return;
         }
 
+        $this->creditNote($saleReturn);
+
         $saleReturnId = $saleReturn->getKey();
 
         defer(function () use ($saleReturnId) {
@@ -49,6 +51,8 @@ class SaleReturnObserver
             return;
         }
 
+        $this->creditNote($saleReturn);
+
         $replaceExisting = $wasConfirmed;
 
         defer(function () use ($saleReturnId, $replaceExisting) {
@@ -74,6 +78,19 @@ class SaleReturnObserver
         } catch (\Throwable $e) {
             Log::error('SaleReturnObserver: sales accounting failed', [
                 'sale_return_id' => $saleReturnId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /** Phase 6.4 — numbered credit note document for the return (no extra posting). */
+    private function creditNote(SaleReturn $saleReturn): void
+    {
+        try {
+            app(\App\Services\Accounting\ReceivablesService::class)->ensureForSaleReturn($saleReturn);
+        } catch (\Throwable $e) {
+            Log::warning('SaleReturnObserver: credit note document not created', [
+                'sale_return_id' => $saleReturn->getKey(),
                 'error' => $e->getMessage(),
             ]);
         }

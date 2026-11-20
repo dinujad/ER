@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>TAX INVOICE - {{ $order->taxInvoiceSerialNumber() }}</title>
+    <title>{{ filled($order->customer?->tin) ? 'TAX INVOICE' : 'INVOICE' }} - {{ $order->taxInvoiceSerialNumber() }}</title>
     <style>
         @page { margin: 10mm 10mm; }
         * { box-sizing: border-box; }
@@ -225,7 +225,7 @@
 @php
     $company = config('dermas.company', []);
     $vat = $order->taxInvoiceVatBreakdown();
-    $invoiceDate = ($order->updated_at ?? $order->created_at ?? now())->format('m/d/Y');
+    $invoiceDate = ($order->invoice_date ?? $order->updated_at ?? $order->created_at ?? now())->format('m/d/Y');
     $supplyDate = ($order->order_date ?? $order->created_at ?? now());
     $supplyDateFmt = $supplyDate instanceof \Carbon\Carbon
         ? $supplyDate->format('m/d/Y')
@@ -253,19 +253,17 @@
             ];
         })
         ->values();
-    $subtotal = (float) ($order->subtotal ?? $order->items->sum('total_price'));
-    $discount = (float) ($order->discount_amount ?? 0);
-    $transport = (float) ($order->shipping ?? 0);
-    $otherExpenses = (float) ($order->invoice_other_expenses ?? 0);
+    // TIN → TAX INVOICE (SSCL / VAT on own lines). No TIN → normal INVOICE, VAT folded into prices,
+    // SSCL either on its own line or folded too (order->invoice_show_sscl). See Order::invoicePresentation().
+    $presentation = $order->invoicePresentation($groupedItems);
+    $isVatRegisteredPurchaser = $presentation['is_tax_invoice'];
+    $groupedItems = $presentation['items'];
     $salesPersonName = $order->salesPerson?->name ?: '—';
     $salesPersonPhone = filled($order->salesPerson?->phone) ? $order->salesPerson->phone : '—';
     $additional = trim(implode(' · ', array_filter([
         $order->order_number ? 'Order ' . $order->order_number : null,
         ($order->issued_bags_count ?? null) !== null ? 'Bags: ' . $order->issued_bags_count : null,
         ($order->issued_bundle_count ?? null) !== null ? 'Bundles: ' . $order->issued_bundle_count : null,
-        $discount > 0 ? 'Discount Rs ' . number_format($discount, 2) : null,
-        $transport > 0 ? 'Transport Rs ' . number_format($transport, 2) : null,
-        $otherExpenses > 0 ? 'Other Rs ' . number_format($otherExpenses, 2) : null,
     ])));
 @endphp
 
@@ -282,7 +280,7 @@
                 </div>
             </td>
             <td style="width: 34%;">
-                <div class="doc-title">TAX INVOICE</div>
+                <div class="doc-title">{{ $isVatRegisteredPurchaser ? 'TAX INVOICE' : 'INVOICE' }}</div>
             </td>
         </tr>
     </table>
@@ -300,7 +298,7 @@
             <td>
                 <table class="box">
                     <tr>
-                        <td style="width: 42%;"><span class="label">Tax Invoice No.</span></td>
+                        <td style="width: 42%;"><span class="label">{{ $isVatRegisteredPurchaser ? 'Tax Invoice No.' : 'Invoice No.' }}</span></td>
                         <td><strong>{{ $order->taxInvoiceSerialNumber() }}</strong></td>
                     </tr>
                 </table>
@@ -403,7 +401,7 @@
                 <th style="width: 38%;">Description of Goods or Services</th>
                 <th style="width: 12%;" class="text-center">Quantity</th>
                 <th style="width: 18%;" class="text-right">Unit Price</th>
-                <th style="width: 20%;" class="text-right">Amount Excluding VAT (Rs.)</th>
+                <th style="width: 20%;" class="text-right">{{ $isVatRegisteredPurchaser ? 'Amount Excluding VAT (Rs.)' : 'Amount (Rs.)' }}</th>
             </tr>
         </thead>
         <tbody>
@@ -420,6 +418,26 @@
                     <td colspan="5" class="text-center">No items</td>
                 </tr>
             @endforelse
+            @foreach($presentation['adjustments'] as $adj)
+            <tr>
+                <td></td>
+                <td>{{ $adj['label'] }}</td>
+                <td class="text-center"></td>
+                <td class="text-right"></td>
+                <td class="text-right">{{ $adj['amount'] < 0 ? '(' . number_format(abs($adj['amount']), 2) . ')' : number_format($adj['amount'], 2) }}</td>
+            </tr>
+            @endforeach
+            @php $roundingAfterSscl = !$isVatRegisteredPurchaser && $presentation['show_sscl']; @endphp
+            @if($presentation['rounding'] != 0 && !$roundingAfterSscl)
+            <tr>
+                <td></td>
+                <td>Rounding adjustment</td>
+                <td class="text-center"></td>
+                <td class="text-right"></td>
+                <td class="text-right">{{ number_format($presentation['rounding'], 2) }}</td>
+            </tr>
+            @endif
+            @if($isVatRegisteredPurchaser)
             @if($vat['sscl'] > 0)
             <tr>
                 <td></td>
@@ -441,6 +459,28 @@
                 <td colspan="4" class="summary-label text-right">Total Amount / consideration including VAT</td>
                 <td class="text-right"><strong>{{ number_format($vat['inclusive'], 2) }}</strong></td>
             </tr>
+            @else
+            @if($presentation['show_sscl'])
+            <tr>
+                <td colspan="4" class="summary-label text-right">Sub Total (inclusive of VAT)</td>
+                <td class="text-right"><strong>{{ number_format($presentation['lines_total'], 2) }}</strong></td>
+            </tr>
+            <tr>
+                <td colspan="4" class="summary-label text-right">SSCL {{ number_format($vat['sscl_rate'], 1) }}% (on goods value Rs {{ number_format($vat['goods'], 2) }})</td>
+                <td class="text-right"><strong>{{ number_format($presentation['sscl'], 2) }}</strong></td>
+            </tr>
+            @if($presentation['rounding'] != 0)
+            <tr>
+                <td colspan="4" class="summary-label text-right">Rounding adjustment</td>
+                <td class="text-right">{{ number_format($presentation['rounding'], 2) }}</td>
+            </tr>
+            @endif
+            @endif
+            <tr>
+                <td colspan="4" class="summary-label text-right">{{ $presentation['show_sscl'] ? 'Total Amount (inclusive of VAT)' : 'Total Amount (inclusive of SSCL & VAT)' }}</td>
+                <td class="text-right"><strong>{{ number_format($presentation['total'], 2) }}</strong></td>
+            </tr>
+            @endif
         </tbody>
     </table>
 
@@ -483,7 +523,7 @@
     </div>
 
     <div class="footer-note">
-        * Optional fields. Tax Invoice issued under Inland Revenue VAT invoice specifications.
+        * Optional fields.@if($isVatRegisteredPurchaser) Tax Invoice issued under Inland Revenue VAT invoice specifications.@endif
         @if($order->order_number)
             Order ref: {{ $order->order_number }}.
         @endif

@@ -13,6 +13,7 @@ class BankStatementLine extends Model
         'bank_statement_import_id', 'txn_date', 'description', 'reference',
         'debit', 'credit', 'amount', 'fingerprint', 'match_status', 'excluded_reason',
         'matched_source_type', 'matched_source_id', 'matched_at', 'matched_by',
+        'fee_amount', 'fee_transaction_number',
     ];
 
     protected $casts = [

@@ -147,7 +147,9 @@
                             @endif
                         </td>
                         <td>
-                            <a href="{{ url('accounting/journal_entry/'.$row->transaction_number.'/show') }}" class="btn btn-sm btn-outline-secondary">View</a>
+                            <a href="{{ url('accounting/journal_entry/'.rawurlencode($row->transaction_number).'/show') }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-journal-text me-1" aria-hidden="true"></i> View details
+                            </a>
                         </td>
                     </tr>
                 @empty

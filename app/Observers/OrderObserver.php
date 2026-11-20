@@ -45,6 +45,9 @@ class OrderObserver
         if (!$isRecognized || !$order->wasChanged([
             'status',
             'total_amount',
+            'invoice_sscl_amount',
+            'invoice_goods_amount',
+            'invoice_vat_amount',
             'order_date',
             'invoice_number',
         ])) {

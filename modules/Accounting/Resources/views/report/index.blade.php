@@ -6,13 +6,14 @@
 .report-section{margin-bottom:28px}
 .report-section-title{font-weight:700;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 .report-section-title::after{content:'';flex:1;height:1px;background:#e9ecef}
-.report-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.report-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));gap:14px}
 .report-card{background:#fff;border:1.5px solid #e9ecef;border-radius:12px;padding:18px 20px;text-decoration:none;color:inherit;transition:all .18s;display:block}
 .report-card:hover{border-color:#3b82f6;box-shadow:0 4px 16px rgba(59,130,246,.12);transform:translateY(-2px);text-decoration:none;color:inherit}
 .report-card .r-icon{width:40px;height:40px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;margin-bottom:12px;flex-shrink:0}
 .report-card .r-title{font-weight:600;font-size:.92rem;color:#1e293b;margin-bottom:5px;line-height:1.3}
 .report-card .r-desc{font-size:.8rem;color:#64748b;line-height:1.5;margin:0}
 .report-card:hover .r-title{color:#1d4ed8}
+.report-card:focus-visible{outline:2px solid #3b82f6;outline-offset:2px}
 
 /* Section icon colours */
 .icon-overview{background:#eff6ff;color:#1d4ed8}
@@ -79,6 +80,7 @@ function reportIcon($title){
             </div>
             <div class="r-title">{{ $item->title }}</div>
             <p class="r-desc">{{ $item->description }}</p>
+            <span class="btn btn-sm btn-outline-primary mt-3">Open report <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i></span>
         </a>
         @endforeach
     </div>

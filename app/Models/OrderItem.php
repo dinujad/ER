@@ -8,6 +8,8 @@ use App\Models\ProductVariation; // Added this import
 
 class OrderItem extends Model
 {
+    use \App\Models\Concerns\Auditable;
+
     use HasFactory;
 
     protected $fillable = [
@@ -95,5 +97,10 @@ class OrderItem extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function auditLabel(): string
+    {
+        return 'Order line #' . $this->getKey() . ' (order #' . $this->order_id . ')';
     }
 }

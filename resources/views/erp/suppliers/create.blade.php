@@ -37,6 +37,32 @@
                     <label class="form-label">Tax / VAT No</label>
                     <input type="text" name="tax_vat_no" class="form-control" value="{{ old('tax_vat_no') }}">
                 </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Payment terms (days)</label>
+                    <input type="number" name="payment_terms_days" class="form-control" min="0" max="365" value="{{ old('payment_terms_days') }}" placeholder="{{ config('dermas.default_supplier_terms_days', 30) }}">
+                    <small class="text-muted">Bill due date = bill date + these days. Empty = company default.</small>
+                </div>
+                <div class="col-12"><h6 class="text-primary border-bottom pb-1 mt-2 mb-2">Bank details <small class="text-muted fw-normal">(for supplier payment runs / bank files)</small></h6></div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Bank account name</label>
+                    <input type="text" name="bank_account_name" class="form-control" value="{{ old('bank_account_name') }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Bank account no.</label>
+                    <input type="text" name="bank_account_no" class="form-control" value="{{ old('bank_account_no') }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Bank</label>
+                    <input type="text" name="bank_name" class="form-control" value="{{ old('bank_name') }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Bank code (SLIPS)</label>
+                    <input type="text" name="bank_code" class="form-control" value="{{ old('bank_code') }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Branch code</label>
+                    <input type="text" name="branch_code" class="form-control" value="{{ old('branch_code') }}">
+                </div>
                 <div class="col-md-6">
                     <label class="form-label">Opening Balance</label>
                     <input type="number" name="opening_balance" class="form-control" step="0.01" value="{{ old('opening_balance', 0) }}">

@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Payment extends Model
 {
+    use \App\Models\Concerns\Auditable;
+
     use HasFactory;
 
     public const CHEQUE_RECEIVED  = 'received';
@@ -262,5 +264,10 @@ class Payment extends Model
                         });
                 });
         });
+    }
+
+    public function auditLabel(): string
+    {
+        return 'Payment #' . $this->getKey() . ($this->order_id ? ' (order #' . $this->order_id . ')' : '');
     }
 }

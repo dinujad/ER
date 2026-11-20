@@ -144,7 +144,7 @@
                             <td class="small">{{ ($order->order_date ?? $order->created_at)?->format('Y-m-d') }}</td>
                             <td class="small">{{ ($order->salesPerson && $order->salesPerson->role === 'sales_person') ? $order->salesPerson->name : '—' }}</td>
                             <td><span class="badge bg-{{ $isCancelled ? 'danger' : ($order->status === 'completed' ? 'success' : 'secondary') }}">{{ ucfirst($order->status) }}</span></td>
-                            <td class="text-end font-monospace">{{ number_format((float) $order->total_amount, 2) }}</td>
+                            <td class="text-end font-monospace">{{ number_format($order->invoice_total, 2) }}</td>
                             <td class="text-end font-monospace text-success">{{ number_format($paid, 2) }}</td>
                             <td class="text-end font-monospace {{ $due > 0 ? 'text-danger fw-semibold' : 'text-muted' }}">{{ number_format($due, 2) }}</td>
                             <td class="small">{{ $order->payments->count() }}</td>

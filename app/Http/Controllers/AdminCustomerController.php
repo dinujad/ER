@@ -92,6 +92,7 @@ class AdminCustomerController extends Controller
             'customer_type' => 'required|in:wholesale,retail',
             'sales_person_id' => 'nullable|exists:users,id',
             'credit_limit' => 'nullable|numeric|min:0',
+            'payment_terms_days' => 'nullable|integer|min:0|max:365',
         ]);
 
         $brDocumentPath = null;
@@ -116,6 +117,7 @@ class AdminCustomerController extends Controller
             'tin' => $request->tin,
             'br_document_path' => $brDocumentPath,
             'credit_limit' => $request->credit_limit ?? 0,
+            'payment_terms_days' => $request->filled('payment_terms_days') ? (int) $request->payment_terms_days : null,
             'added_by' => $addedBy,
             'customer_type' => $request->customer_type,
         ]);
@@ -180,6 +182,7 @@ class AdminCustomerController extends Controller
             'customer_type' => 'required|in:wholesale,retail',
             'sales_person_id' => 'nullable|exists:users,id',
             'credit_limit' => 'nullable|numeric|min:0',
+            'payment_terms_days' => 'nullable|integer|min:0|max:365',
         ]);
 
         if ($request->hasFile('br_document')) {

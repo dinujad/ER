@@ -504,6 +504,8 @@ class SalesPersonOrderController extends Controller
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('erp.sales_persons.orders.invoice', compact('order'))
             ->setPaper('a4', 'portrait');
 
+        \App\Services\Audit\AuditLogger::record($order, 'invoice_printed');
+
         return $pdf->download('tax-invoice-' . $order->taxInvoiceSerialNumber() . '.pdf');
     }
 

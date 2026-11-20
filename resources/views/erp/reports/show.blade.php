@@ -363,7 +363,7 @@
                             @forelse(($data['orders'] ?? []) as $o)
                                 @php
                                     $paid = (float) ($o->payments_sum_amount ?? 0);
-                                    $due = max(0, (float) $o->total_amount - $paid);
+                                    $due = max(0, $o->invoice_total - $paid);
                                     $isWholesale = $o->salesPerson && $o->salesPerson->role === 'sales_person';
                                 @endphp
                                 <tr>
@@ -373,7 +373,7 @@
                                     <td><span class="badge bg-{{ $isWholesale ? 'dark' : 'info' }}">{{ $isWholesale ? 'Wholesale' : 'Retail' }}</span></td>
                                     <td>{{ $isWholesale ? $o->salesPerson->name : '—' }}</td>
                                     <td>{{ ucfirst($o->status) }}</td>
-                                    <td class="text-end">{{ number_format($o->total_amount, 2) }}</td>
+                                    <td class="text-end">{{ number_format($o->invoice_total, 2) }}</td>
                                     <td class="text-end text-success">{{ number_format($paid, 2) }}</td>
                                     <td class="text-end {{ $due > 0 ? 'text-danger fw-semibold' : 'text-muted' }}">{{ number_format($due, 2) }}</td>
                                 </tr>

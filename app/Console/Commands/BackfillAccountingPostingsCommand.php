@@ -84,6 +84,7 @@ class BackfillAccountingPostingsCommand extends Command
                     'purchase_return'
                 );
                 $return->updateQuietly(['accounting_txn_number' => $txn]);
+                \App\Services\PurchaseReturnService::postInputVatReversal($return);
             }
         });
 

@@ -127,6 +127,12 @@
                         </div>
                     </div>
                     <div class="mb-2"><label class="form-label small">Tax</label><input type="number" name="tax_amount" id="tax_amount" class="form-control form-control-sm" step="0.01" min="0" value="{{ old('tax_amount', 0) }}"></div>
+                    <div class="form-check mb-2">
+                        <input type="hidden" name="input_vat_claimable" value="0">
+                        <input class="form-check-input" type="checkbox" name="input_vat_claimable" value="1" id="input_vat_claimable" @checked(old('input_vat_claimable', '1') === '1')>
+                        <label class="form-check-label small fw-semibold" for="input_vat_claimable">Claim this tax as input VAT</label>
+                        <div class="form-text small">Tick only when the supplier is VAT registered and gave a tax invoice. Ticked: the tax goes to <em>VAT Input (1165)</em> and is deducted in the VAT return. Not ticked: the tax is added to the stock cost.</div>
+                    </div>
                     <div class="mb-2"><label class="form-label small">Shipping / Other</label><input type="number" name="shipping_cost" id="shipping_cost" class="form-control form-control-sm" step="0.01" min="0" value="{{ old('shipping_cost', 0) }}"></div>
                     <hr>
                     <div class="d-flex justify-content-between mb-2"><strong>Grand Total</strong><strong id="sum-total">0.00</strong></div>

@@ -12,6 +12,12 @@ class BankStatementImport extends Model
     protected $fillable = [
         'business_id', 'chart_of_account_id', 'original_filename',
         'status', 'imported_by', 'row_count',
+        'statement_from', 'statement_to', 'opening_balance', 'closing_balance',
+    ];
+
+    protected $casts = [
+        'statement_from' => 'date',
+        'statement_to' => 'date',
     ];
 
     public function lines(): HasMany

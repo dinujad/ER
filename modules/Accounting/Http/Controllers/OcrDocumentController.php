@@ -98,7 +98,8 @@ class OcrDocumentController extends Controller
             $forced = json_decode($request->input('forced_json'), true);
         }
 
-        $ocr->process($id, $forced);
+        $pasted = $request->filled('pasted_text') ? (string) $request->input('pasted_text') : null;
+        $ocr->process($id, $forced, $pasted);
 
         return redirect('accounting/phase5/ocr/'.$id)->with('status', 'Extraction completed.');
     }

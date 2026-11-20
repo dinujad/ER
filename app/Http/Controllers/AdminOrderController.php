@@ -13,6 +13,7 @@ use App\Models\StockLedger;
 use App\Services\StockChannelService;
 use App\Models\User;
 use App\Services\SaleReturnClaimService;
+use App\Services\Audit\AuditLogger;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -79,9 +80,9 @@ class AdminOrderController extends Controller
         if ($request->filled('payment_state')) {
             $paidSub = Order::effectivePaidAmountSubquery();
             if ($request->payment_state === 'paid') {
-                $query->whereRaw("total_amount <= {$paidSub}");
+                $query->whereRaw(Order::invoiceTotalSql() . " <= {$paidSub}");
             } elseif ($request->payment_state === 'due') {
-                $query->whereRaw("total_amount > {$paidSub}");
+                $query->whereRaw(Order::invoiceTotalSql() . " > {$paidSub}");
             }
         }
 
@@ -719,6 +720,16 @@ class AdminOrderController extends Controller
             }
         });
 
+        $order->refresh();
+        AuditLogger::record($order, 'invoice_issued', [], [
+            'invoice_number' => $order->invoice_number,
+            'goods_total' => (float) $order->total_amount,
+            'sscl' => $order->invoice_sscl_amount,
+            'vat' => $order->invoice_vat_amount,
+            'invoice_total' => $order->invoice_total,
+            'show_sscl_line' => (bool) $order->invoice_show_sscl,
+        ]);
+
         return redirect()->route('orders.index', ['workflow' => 'issued'])->with('success', 'Invoice issued successfully.');
     }
 
@@ -731,7 +742,13 @@ class AdminOrderController extends Controller
         $order->load(['items.product', 'items.variation']);
         $validated = $request->validate($this->invoiceFinancialRules());
         $subtotal = (float) $order->items->sum('total_price');
+        $before = ['goods_total' => (float) $order->total_amount, 'invoice_total' => $order->invoice_total];
         $this->applyInvoiceFinancials($order, $validated, $subtotal, markCompleted: false);
+        $order->refresh();
+        AuditLogger::record($order, 'invoice_edited', $before, [
+            'goods_total' => (float) $order->total_amount,
+            'invoice_total' => $order->invoice_total,
+        ]);
 
         return back()->with('success', 'Invoice updated successfully. Net total recalculated.');
     }
@@ -746,6 +763,8 @@ class AdminOrderController extends Controller
         $pdf = Pdf::loadView('erp.sales_persons.orders.invoice', compact('order'))
             ->setPaper('a4', 'portrait');
         $serial = $order->taxInvoiceSerialNumber();
+
+        AuditLogger::record($order, 'invoice_printed');
 
         return $pdf->download('tax-invoice-' . $serial . '.pdf');
     }
@@ -776,6 +795,10 @@ class AdminOrderController extends Controller
             'shipping' => 'nullable|numeric|min:0',
             'invoice_other_expenses' => 'nullable|numeric|min:0',
             'claim_credit_amount' => 'nullable|numeric|min:0',
+            'invoice_show_sscl' => 'nullable|boolean',
+            'invoice_vat_code' => 'nullable|in:standard,zero,exempt',
+            'invoice_vat_mode' => 'nullable|in:add,included,zero,exempt',
+            'invoice_sscl_mode' => 'nullable|in:add,included',
         ];
     }
 
@@ -793,11 +816,35 @@ class AdminOrderController extends Controller
             'subtotal' => round($subtotal, 2),
         ]);
 
+        if (!empty($validated['invoice_vat_code'])) {
+            $payload['invoice_vat_code'] = \App\Support\VatTreatment::normalize($validated['invoice_vat_code']);
+        }
+        if (!empty($validated['invoice_vat_mode'])) {
+            $mode = $validated['invoice_vat_mode'];
+            $payload['invoice_vat_code'] = in_array($mode, ['zero', 'exempt'], true) ? $mode : \App\Support\VatTreatment::STANDARD;
+            $payload['invoice_vat_inclusive'] = $mode === 'included';
+        }
+        if (!empty($validated['invoice_sscl_mode'])) {
+            $payload['invoice_sscl_inclusive'] = $validated['invoice_sscl_mode'] === 'included';
+        }
+
+        if (array_key_exists('invoice_show_sscl', $validated)) {
+            $payload['invoice_show_sscl'] = (bool) $validated['invoice_show_sscl'];
+        }
+
         if ($markCompleted) {
             $payload['invoice_number'] = $order->invoice_number ?: Order::nextInvoiceNumber();
             $payload['status'] = Order::STATUS_COMPLETED;
         }
 
-        $order->update($payload);
+        $order->fill($payload);
+        // Customer is billed goods + SSCL + VAT from now on. Invoices issued before this change
+        // (tax amounts NULL) are left as they were; Order::saving re-syncs tax when total changes.
+        if ($markCompleted) {
+            $order->applyInvoiceTax();
+            $order->loadMissing('customer');
+            $order->stampInvoiceDates();
+        }
+        $order->save();
     }
 }

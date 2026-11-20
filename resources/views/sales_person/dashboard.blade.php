@@ -332,7 +332,7 @@
                                         @endif
                                     </td>
                                     <td class="d-none d-md-table-cell">{{ $order->order_date?->format('M d, Y') ?? '—' }}</td>
-                                    <td>{{ number_format($order->total_amount ?? 0, 2) }}</td>
+                                    <td>{{ number_format($order->invoice_total, 2) }}</td>
                                     <td>
                                         <a href="{{ route('sales-person.orders.show', $order) }}" class="btn btn-sm btn-outline-secondary">View</a>
                                     </td>

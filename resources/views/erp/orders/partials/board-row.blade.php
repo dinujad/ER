@@ -47,7 +47,7 @@
         <td>{{ $order->issued_bags_count ?? '—' }}</td>
         <td>{{ $order->issued_bundle_count ?? '—' }}</td>
     @endif
-    <td class="text-end font-monospace"><strong>{{ number_format($order->total_amount, 2) }}</strong></td>
+    <td class="text-end font-monospace"><strong>{{ number_format($order->invoice_total, 2) }}</strong></td>
     <td class="text-end font-monospace small">
         <span class="text-success d-block">{{ number_format($order->paid_amount, 2) }}</span>
         @if($order->due_amount > 0)

@@ -259,7 +259,11 @@ class JournalEntryController extends Controller
             ->with('chart_of_account')
             ->with('business_location') //Filtered by business_id session
             ->get();
-        return view('accounting::journal_entry.show', compact('data'));
+        abort_if($data->isEmpty(), 404);
+        $line = $data->first(fn ($entry) => $entry->source_type && $entry->source_id) ?? $data->first();
+        $source = \App\Services\Accounting\SourceDocumentResolver::forJournal($line);
+
+        return view('accounting::journal_entry.show', compact('data', 'source'));
     }
 
     /**

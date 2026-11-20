@@ -35,7 +35,7 @@
                         <tr>
                             <td>{{ $order->order_number }}</td>
                             <td>{{ $order->customer?->display_name ?? 'â€”' }}</td>
-                            <td>Rs. {{ number_format($order->total_amount, 2) }}</td>
+                            <td>Rs. {{ number_format($order->invoice_total, 2) }}</td>
                             <td>
                                 <span class="badge bg-{{ $order->status == 'completed' ? 'success' : ($order->status == 'pending' ? 'warning' : 'secondary') }}">
                                     {{ ucfirst($order->status) }}

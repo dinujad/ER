@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
+    use \App\Models\Concerns\Auditable;
+
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
@@ -209,5 +211,10 @@ class Product extends Model
             'cost_per_unit' => $costPerUnit,
             'finalized' => $finalized,
         ];
+    }
+
+    public function auditLabel(): string
+    {
+        return 'Product ' . ($this->sku ? $this->sku . ' ' : '') . ($this->name ?: '#' . $this->getKey());
     }
 }

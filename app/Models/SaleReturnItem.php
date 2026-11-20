@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SaleReturnItem extends Model
 {
+    use \App\Models\Concerns\Auditable;
+
     protected $fillable = [
         'sale_return_id',
         'order_item_id',
@@ -63,5 +65,10 @@ class SaleReturnItem extends Model
     public function variation(): BelongsTo
     {
         return $this->belongsTo(ProductVariation::class, 'product_variation_id');
+    }
+
+    public function auditLabel(): string
+    {
+        return 'Sale return line #' . $this->getKey();
     }
 }

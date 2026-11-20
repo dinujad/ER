@@ -50,6 +50,9 @@ class AccountingService
     public const GL_LOSS_ON_DISPOSAL        = '6500';
     public const GL_TAX_RECEIVABLE          = '1160';
     public const GL_TAX_PAYABLE             = '2300';
+    public const GL_VAT_OUTPUT              = '2310'; // Phase 6.3 — VAT on sales
+    public const GL_SSCL_PAYABLE            = '2320'; // Phase 6.3 — SSCL on sales
+    public const GL_VAT_INPUT               = '1165'; // Phase 6.3 — claimable VAT on purchases
 
     /** Return the chart_of_accounts.id for a GL code (or null if not found). */
     public static function accountId(string $glCode): ?int

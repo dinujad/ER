@@ -80,10 +80,7 @@ class BankStatementImportService
                     number_format($normalized['credit'], 2, '.', ''),
                 ]));
 
-                $exists = BankStatementLine::query()
-                    ->whereHas('import', fn ($q) => $q->where('chart_of_account_id', $chartOfAccountId))
-                    ->where('fingerprint', $fingerprint)
-                    ->exists();
+                $exists = self::fingerprintExists($chartOfAccountId, $fingerprint);
 
                 if ($exists) {
                     $errors[] = "Row {$rowNum}: duplicate statement row skipped.";
@@ -277,7 +274,18 @@ class BankStatementImportService
                 return null;
             }
         }
-        $ts = strtotime((string) $raw);
+        $raw = trim((string) $raw);
+        // Sri Lankan bank statements are day-first (dd/mm/yyyy). strtotime() would read 03/11/2026 as 11 March.
+        if (preg_match('/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})$/', $raw, $m)) {
+            $y = strlen($m[3]) === 2 ? 2000 + (int) $m[3] : (int) $m[3];
+            [$d, $mo] = [(int) $m[1], (int) $m[2]];
+            if (! checkdate($mo, $d, $y) && checkdate($d, $mo, $y)) {
+                [$d, $mo] = [$mo, $d]; // only month-first is possible (e.g. 11/25/2026)
+            }
+
+            return checkdate($mo, $d, $y) ? sprintf('%04d-%02d-%02d', $y, $mo, $d) : null;
+        }
+        $ts = strtotime($raw);
 
         return $ts ? date('Y-m-d', $ts) : null;
     }
@@ -289,9 +297,11 @@ class BankStatementImportService
      */
     protected static function normalizeRow(array $row, int $rowNum, array &$errors): ?array
     {
-        $debit = isset($row['debit']) && is_numeric($row['debit']) ? round((float) $row['debit'], 2) : 0.0;
-        $credit = isset($row['credit']) && is_numeric($row['credit']) ? round((float) $row['credit'], 2) : 0.0;
-        $amount = isset($row['amount']) && is_numeric($row['amount']) ? round((float) $row['amount'], 2) : 0.0;
+        $debit = self::toNumber($row['debit'] ?? null);
+        $credit = self::toNumber($row['credit'] ?? null);
+        $amount = self::toNumber($row['amount'] ?? null);
+        // A debit column holding a negative number (some banks) is still a withdrawal.
+        $debit = abs($debit);
 
         if ($amount != 0.0 && $debit == 0.0 && $credit == 0.0) {
             if ($amount < 0) {
@@ -339,5 +349,74 @@ class BankStatementImportService
         }
 
         return true;
+    }
+
+    /** Bank files write amounts as "2,500.00", "(1,000.00)", "Rs. 500" or "1 250.00 CR" — read them as numbers. */
+    public static function toNumber(mixed $raw): float
+    {
+        if ($raw === null || $raw === '') {
+            return 0.0;
+        }
+        if (is_int($raw) || is_float($raw)) {
+            return round((float) $raw, 2);
+        }
+        $s = strtoupper(trim((string) $raw));
+        $negative = str_starts_with($s, '(') && str_ends_with($s, ')') || str_ends_with($s, 'DR') || str_starts_with($s, '-');
+        $s = preg_replace('/[^0-9.]/', '', $s);
+        if ($s === '' || ! is_numeric($s)) {
+            return 0.0;
+        }
+
+        return round(($negative ? -1 : 1) * (float) $s, 2);
+    }
+
+    /** Only lines of real (imported) statements count as duplicates — previews and cancelled imports do not. */
+    public static function fingerprintExists(int $chartOfAccountId, string $fingerprint): bool
+    {
+        return BankStatementLine::query()
+            ->whereHas('import', fn ($q) => $q->where('chart_of_account_id', $chartOfAccountId)->where('status', 'imported'))
+            ->where('fingerprint', $fingerprint)
+            ->exists();
+    }
+
+    /**
+     * Preview before importing: every row with its status (new / duplicate / invalid). Writes nothing.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array{rows: array<int, array<string, mixed>>, new: int, duplicates: int, invalid: int, credits: float, debits: float, from: ?string, to: ?string}
+     */
+    public static function preview(int $chartOfAccountId, array $rows): array
+    {
+        $out = [];
+        $seen = [];
+        $stats = ['new' => 0, 'duplicates' => 0, 'invalid' => 0, 'credits' => 0.0, 'debits' => 0.0];
+        $dates = [];
+        foreach ($rows as $idx => $row) {
+            $rowNum = $idx + 2;
+            $errors = [];
+            $n = self::normalizeRow($row, $rowNum, $errors);
+            if ($n === null) {
+                $stats['invalid']++;
+                $out[] = ['row' => $rowNum, 'status' => 'invalid', 'message' => preg_replace('/^Row \d+: /', '', $errors[0] ?? 'Invalid row'),
+                    'date' => $row['date'] ?? null, 'description' => $row['description'] ?? null, 'reference' => $row['reference'] ?? null, 'debit' => null, 'credit' => null];
+                continue;
+            }
+            $fp = hash('sha256', implode('|', [(string) ($n['date'] ?? ''), (string) ($n['description'] ?? ''), (string) ($n['reference'] ?? ''),
+                number_format($n['debit'], 2, '.', ''), number_format($n['credit'], 2, '.', '')]));
+            $dup = isset($seen[$fp]) || self::fingerprintExists($chartOfAccountId, $fp);
+            $seen[$fp] = true;
+            $status = $dup ? 'duplicate' : 'new';
+            $stats[$dup ? 'duplicates' : 'new']++;
+            if (! $dup) {
+                $stats['credits'] = round($stats['credits'] + $n['credit'], 2);
+                $stats['debits'] = round($stats['debits'] + $n['debit'], 2);
+                if ($n['date']) {
+                    $dates[] = $n['date'];
+                }
+            }
+            $out[] = ['row' => $rowNum, 'status' => $status, 'message' => $dup ? 'Already imported — will be skipped' : null] + $n;
+        }
+
+        return ['rows' => $out, 'from' => $dates ? min($dates) : null, 'to' => $dates ? max($dates) : null] + $stats;
     }
 }

@@ -593,10 +593,10 @@ class ReportController extends Controller
 
         if ($paymentState === 'paid') {
             $paidSub = Order::effectivePaidAmountSubquery();
-            $query->whereRaw("total_amount <= {$paidSub}");
+            $query->whereRaw(Order::invoiceTotalSql() . " <= {$paidSub}");
         } elseif ($paymentState === 'due') {
             $paidSub = Order::effectivePaidAmountSubquery();
-            $query->whereRaw("total_amount > {$paidSub}");
+            $query->whereRaw(Order::invoiceTotalSql() . " > {$paidSub}");
         }
 
         return [
@@ -818,7 +818,7 @@ class ReportController extends Controller
                 fputcsv($out, ['Date', 'Order #', 'Business name', 'Type', 'Sales Person', 'Status', 'Total (Rs)', 'Paid (Rs)', 'Due (Rs)']);
                 foreach ($data['orders'] ?? [] as $o) {
                     $paid = (float) ($o->payments_sum_amount ?? 0);
-                    $total = (float) ($o->total_amount ?? 0);
+                    $total = $o->invoice_total;
                     $isWholesale = $o->salesPerson && $o->salesPerson->role === 'sales_person';
                     $business = trim((string) ($o->customer?->business_name ?? ''));
                     fputcsv($out, [
@@ -1276,9 +1276,9 @@ class ReportController extends Controller
                 'customer' => $order->customer?->display_name ?? '—',
                 'customer_phone' => $order->customer?->phone ?? '',
                 'sales_person' => $order->salesPerson?->name ?? '—',
-                'total_amount' => (float) $order->total_amount,
+                'total_amount' => $order->invoice_total,
                 'paid_amount' => (float) $paid,
-                'due_amount' => max(0, (float) $order->total_amount - (float) $paid),
+                'due_amount' => max(0, $order->invoice_total - (float) $paid),
                 'status' => $order->status,
                 'status_label' => $order->statusLabel(),
             ];

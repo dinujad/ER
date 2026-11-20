@@ -19,6 +19,7 @@
     <!-- Main content -->
     <section class="content no-print" id="vue-app">
         @can('accounting.view')
+            @include('accounting::journal_entry.source_document', ['reference' => $data->first()->reference, 'description' => $data->first()->name])
             <div class="row">
 
                 @component('accounting::components.box')

@@ -59,13 +59,19 @@ class SupplierController extends Controller
             'email' => 'nullable|email',
             'address' => 'nullable|string',
             'tax_vat_no' => 'nullable|string|max:100',
+            'payment_terms_days' => 'nullable|integer|min:0|max:365',
+            'bank_account_name' => 'nullable|string|max:120',
+            'bank_account_no' => 'nullable|string|max:40',
+            'bank_name' => 'nullable|string|max:80',
+            'bank_code' => 'nullable|string|max:10',
+            'branch_code' => 'nullable|string|max:10',
             'opening_balance' => 'nullable|numeric',
             'status' => 'in:active,inactive',
             'notes' => 'nullable|string',
         ]);
 
         $data = $request->only([
-            'name', 'company_name', 'phone', 'email', 'address', 'tax_vat_no', 'status', 'notes',
+            'name', 'company_name', 'phone', 'email', 'address', 'tax_vat_no', 'status', 'notes', 'payment_terms_days', 'bank_account_name', 'bank_account_no', 'bank_name', 'bank_code', 'branch_code',
         ]);
         $data['opening_balance'] = $request->input('opening_balance', 0);
         $data['code'] = Supplier::generateCode();
@@ -230,13 +236,19 @@ class SupplierController extends Controller
             'email' => 'nullable|email',
             'address' => 'nullable|string',
             'tax_vat_no' => 'nullable|string|max:100',
+            'payment_terms_days' => 'nullable|integer|min:0|max:365',
+            'bank_account_name' => 'nullable|string|max:120',
+            'bank_account_no' => 'nullable|string|max:40',
+            'bank_name' => 'nullable|string|max:80',
+            'bank_code' => 'nullable|string|max:10',
+            'branch_code' => 'nullable|string|max:10',
             'opening_balance' => 'nullable|numeric',
             'status' => 'in:active,inactive',
             'notes' => 'nullable|string',
         ]);
 
         $supplier->update($request->only([
-            'name', 'company_name', 'phone', 'email', 'address', 'tax_vat_no', 'opening_balance', 'status', 'notes',
+            'name', 'company_name', 'phone', 'email', 'address', 'tax_vat_no', 'opening_balance', 'status', 'notes', 'payment_terms_days', 'bank_account_name', 'bank_account_no', 'bank_name', 'bank_code', 'branch_code',
         ]));
 
         return redirect()->route('suppliers.index')->with('success', 'Supplier updated successfully.');

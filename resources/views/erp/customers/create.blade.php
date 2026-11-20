@@ -59,6 +59,12 @@
                     <div class="col-md-4">
                         <label class="form-label">Credit Limit (Rs)</label>
                         <input type="number" step="0.01" min="0" name="credit_limit" class="form-control" value="{{ old('credit_limit', $customer->credit_limit ?? 0) }}">
+                        <small class="text-muted">0 = no limit. Issue Invoice warns when this customer's unpaid balance would go over it.</small>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Payment terms (days)</label>
+                        <input type="number" step="1" min="0" max="365" name="payment_terms_days" class="form-control" value="{{ old('payment_terms_days', $customer->payment_terms_days ?? '') }}" placeholder="{{ config('dermas.default_payment_terms_days', 30) }}">
+                        <small class="text-muted">Due date = invoice date + these days. Empty = company default ({{ config('dermas.default_payment_terms_days', 30) }} days).</small>
                     </div>
                 </div>
 

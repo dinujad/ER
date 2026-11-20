@@ -2,7 +2,7 @@
 @php
     $retailMode = $retailMode ?? false;
     $paid = (float) $order->paid_amount;
-    $returned = (float) $order->total_returned;
+    $returned = (float) $order->total_returned_billed;
     $net = (float) $order->net_total;
     $refunded = (float) $order->total_refunded;
     $refundable = (float) $order->refundable_to_customer;
@@ -25,7 +25,7 @@
     @endif
 
     <div class="alert alert-info py-2 small mb-3">
-        Invoice total <strong>Rs {{ number_format((float) $order->total_amount, 2) }}</strong>
+        Invoice total <strong>Rs {{ number_format($order->invoice_total, 2) }}</strong>@if($order->chargesInvoiceTax()) <span class="text-muted">(incl. SSCL &amp; VAT — returned items are credited with their share of tax)</span>@endif
         · Already returned <strong>Rs {{ number_format($returned, 2) }}</strong>
         · Net <strong>Rs {{ number_format($net, 2) }}</strong>
         · Paid <strong>Rs {{ number_format($paid, 2) }}</strong>

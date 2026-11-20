@@ -32,5 +32,25 @@ return Application::configure(basePath: dirname(__DIR__))
         'Fruitcake\Cors\HandleCors' => \Illuminate\Http\Middleware\HandleCors::class,
     ])
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // MySQL full ("Too many connections"): short 503 with auto-retry, not a 500 / debug page.
+        $exceptions->render(function (\Throwable $e, \Illuminate\Http\Request $request) {
+            $busy = false;
+            for ($x = $e; $x; $x = $x->getPrevious()) {
+                if (\App\Database\RetryingMySqlConnector::isServerFull($x)) {
+                    $busy = true;
+                    break;
+                }
+            }
+            if (!$busy) {
+                return null;
+            }
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'The system is busy. Please try again in a few seconds.'], 503, ['Retry-After' => '10']);
+            }
+
+            return response()->view('errors.db-busy', [], 503, ['Retry-After' => '10']);
+        });
+        $exceptions->throttle(fn (\Throwable $e) => \App\Database\RetryingMySqlConnector::isServerFull($e)
+            ? \Illuminate\Cache\RateLimiting\Limit::perMinute(5)
+            : null);
     })->create();

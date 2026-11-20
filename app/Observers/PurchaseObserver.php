@@ -34,6 +34,8 @@ class PurchaseObserver
         $isCancelled = $purchase->status === Purchase::STATUS_CANCELLED;
         $accountingChanged = $purchase->wasChanged([
             'total',
+            'tax_amount',
+            'input_vat_claimable',
             'date',
             'purchase_no',
             'reference_no',
@@ -114,7 +116,17 @@ class PurchaseObserver
             if ($assetSum > 0) {
                 $assetSum = AccountingService::normalizeMoney($assetSum);
             }
-            $inventoryRemainder = round(max(0, $amount - $assetSum), 2);
+            // Phase 6.3 — claimable VAT goes to VAT Input (1165) instead of stock cost.
+            $inputVat = $purchase->inputVatAmount();
+            $inputVat = round(min($inputVat, max(0, $amount - $assetSum)), 2);
+            $vatInputId = $inputVat > 0
+                ? (AccountingService::accountId(AccountingService::GL_VAT_INPUT) ?? AccountingService::accountId(AccountingService::GL_TAX_RECEIVABLE))
+                : null;
+            if (! $vatInputId) {
+                $inputVat = 0.0;
+            }
+
+            $inventoryRemainder = round(max(0, $amount - $assetSum - $inputVat), 2);
             $inventorySum = $inventoryRemainder > 0
                 ? AccountingService::normalizeMoney($inventoryRemainder)
                 : 0.0;
@@ -126,12 +138,21 @@ class PurchaseObserver
             $reference = $purchase->purchase_no ?? $purchase->reference_no ?? "PO-{$purchase->id}";
             $eventKey = $this->purchaseEventKey($purchase->id);
 
-            if ($assetSum > 0 && $clearingId) {
+            if (($assetSum > 0 && $clearingId) || $inputVat > 0) {
                 $lines = [];
+                if ($assetSum > 0 && ! $clearingId) {
+                    $inventorySum = round($inventorySum + $assetSum, 2);
+                    $assetSum = 0.0;
+                }
                 if ($inventorySum > 0) {
                     $lines[] = ['account_id' => $inventoryId, 'debit' => $inventorySum, 'credit' => 0, 'memo' => 'Raw materials'];
                 }
-                $lines[] = ['account_id' => $clearingId, 'debit' => $assetSum, 'credit' => 0, 'memo' => 'Fixed asset clearing'];
+                if ($assetSum > 0) {
+                    $lines[] = ['account_id' => $clearingId, 'debit' => $assetSum, 'credit' => 0, 'memo' => 'Fixed asset clearing'];
+                }
+                if ($inputVat > 0) {
+                    $lines[] = ['account_id' => $vatInputId, 'debit' => $inputVat, 'credit' => 0, 'memo' => 'Input VAT (claimable)'];
+                }
                 $lines[] = ['account_id' => $payableId, 'debit' => 0, 'credit' => $amount, 'memo' => 'Accounts payable'];
 
                 $txn = AccountingService::postMultiLine(

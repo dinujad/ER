@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[ObservedBy([SaleReturnObserver::class])]
 class SaleReturn extends Model
 {
+    use \App\Models\Concerns\Auditable;
+
     public const STATUS_CONFIRMED = 'confirmed';
 
     public const CHANNEL_WHOLESALE = 'wholesale';
@@ -84,5 +86,10 @@ class SaleReturn extends Model
         $num = $last ? ((int) preg_replace('/\D/', '', $last->return_no)) + 1 : 1;
 
         return 'SR-' . date('Y') . '-' . str_pad((string) $num, 5, '0', STR_PAD_LEFT);
+    }
+
+    public function auditLabel(): string
+    {
+        return 'Sale return ' . ($this->return_no ?: '#' . $this->getKey());
     }
 }

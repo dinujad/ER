@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Customer extends Model
 {
+    use \App\Models\Concerns\Auditable;
+
     use HasFactory;
 
     protected $fillable = [
@@ -23,6 +25,7 @@ class Customer extends Model
         'due_balance',
         'added_by',
         'customer_type',
+        'payment_terms_days',
     ];
 
     protected $casts = [
@@ -141,5 +144,10 @@ class Customer extends Model
     public function getDisplayAddressAttribute(): string
     {
         return $this->displayAddress();
+    }
+
+    public function auditLabel(): string
+    {
+        return 'Customer ' . ($this->business_name ?: $this->name ?: '#' . $this->getKey());
     }
 }

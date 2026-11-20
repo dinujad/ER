@@ -30,7 +30,7 @@
                             <td>{{ $order->order_number }}</td>
                             <td>{{ $order->customer?->display_name ?? 'N/A' }}</td>
                             <td>{{ $order->order_date?->format('Y-m-d') ?? $order->created_at->format('Y-m-d') }}</td>
-                            <td>{{ number_format($order->total_amount, 2) }}</td>
+                            <td>{{ number_format($order->invoice_total, 2) }}</td>
                             <td>
                                 <span class="badge bg-{{ $order->status == 'completed' ? 'success' : ($order->status == 'pending' ? 'warning' : 'secondary') }}">
                                     {{ ucfirst($order->status) }}

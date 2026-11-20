@@ -42,7 +42,11 @@ return [
 
     'ocr' => [
         'enabled' => (bool) env('ACCOUNTING_OCR_ENABLED', true),
-        'driver' => env('ACCOUNTING_OCR_DRIVER', 'fake'),
+        // local = read the text with pdftotext / built-in PDF reader / tesseract, then parse the fields.
+        'driver' => env('ACCOUNTING_OCR_DRIVER', 'local'),
+        'pdftotext_path' => env('ACCOUNTING_OCR_PDFTOTEXT', 'pdftotext'),
+        'tesseract_path' => env('ACCOUNTING_OCR_TESSERACT', 'tesseract'),
+        'tesseract_lang' => env('ACCOUNTING_OCR_TESSERACT_LANG', 'eng'),
         'max_file_kb' => (int) env('ACCOUNTING_OCR_MAX_FILE_KB', 10240),
         'allowed_mimes' => ['image/jpeg', 'image/png', 'application/pdf'],
         'allowed_extensions' => ['jpg', 'jpeg', 'png', 'pdf'],

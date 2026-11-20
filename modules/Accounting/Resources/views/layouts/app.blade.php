@@ -14,6 +14,7 @@
         :root {
             --acct-sidebar: #0f2744;
             --acct-sidebar-2: #163556;
+            --acct-sidebar-width: 280px;
             --acct-accent: #2f6fed;
             --acct-bg: #eef2f6;
             --acct-ink: #1e293b;
@@ -25,10 +26,13 @@
             font-family: 'Source Sans 3', system-ui, sans-serif;
             overflow-x: hidden;
         }
-        .acct-ws-shell { display: flex; min-height: 100vh; align-items: stretch; }
+        .acct-ws-shell {
+            display: grid;
+            grid-template-columns: var(--acct-sidebar-width) minmax(0, 1fr);
+            min-height: 100vh;
+        }
         .acct-ws-sidebar {
-            width: 280px;
-            flex-shrink: 0;
+            width: var(--acct-sidebar-width);
             background: linear-gradient(180deg, var(--acct-sidebar) 0%, var(--acct-sidebar-2) 100%);
             color: #fff;
             display: flex;
@@ -36,12 +40,11 @@
             position: sticky;
             top: 0;
             height: 100vh;
-            overflow-y: auto;
             z-index: 1040;
         }
         .acct-ws-brand {
             display: flex; gap: 12px; align-items: center;
-            padding: 18px 16px; border-bottom: 1px solid rgba(255,255,255,.08);
+            flex-shrink: 0; padding: 18px 16px; border-bottom: 1px solid rgba(255,255,255,.12);
         }
         .acct-ws-brand-mark {
             width: 40px; height: 40px; border-radius: 10px;
@@ -50,32 +53,54 @@
         }
         .acct-ws-brand-title { font-family: 'IBM Plex Sans', sans-serif; font-weight: 700; font-size: 1.05rem; }
         .acct-ws-brand-sub { font-size: .75rem; opacity: .7; }
-        .acct-ws-nav { padding: 12px 10px 24px; flex: 1; }
+        .acct-ws-nav {
+            padding: 4px 12px 18px;
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #58718c transparent;
+        }
         .acct-ws-section {
-            margin: 14px 10px 6px; font-size: .68rem; letter-spacing: .06em;
-            text-transform: uppercase; opacity: .55; font-weight: 600;
+            margin: 18px 4px 8px; font-size: .7rem; letter-spacing: .06em;
+            text-transform: uppercase; color: #b6c9df; font-weight: 700;
         }
         .acct-ws-link {
             display: flex; align-items: center; gap: 10px;
-            color: rgba(255,255,255,.86); text-decoration: none;
-            padding: 9px 12px; border-radius: 8px; font-size: .92rem; margin-bottom: 2px;
+            color: #edf4fc; text-decoration: none;
+            min-height: 42px; padding: 5px 9px; margin-bottom: 5px;
+            background: rgba(255,255,255,.045);
+            border: 1px solid rgba(255,255,255,.10); border-radius: 9px;
+            font-size: .875rem; font-weight: 600;
         }
-        .acct-ws-link:hover { background: rgba(255,255,255,.08); color: #fff; }
-        .acct-ws-link.active { background: #fff; color: #0f2744; font-weight: 600; }
-        .acct-ws-link i { width: 1.1rem; text-align: center; }
-        .acct-ws-sidebar-foot { padding: 12px; border-top: 1px solid rgba(255,255,255,.08); }
+        .acct-ws-link:hover {
+            background: rgba(255,255,255,.13); border-color: rgba(255,255,255,.24); color: #fff;
+        }
+        .acct-ws-link.active {
+            background: #f0f6ff; border-color: #c6dbf8; color: #163556;
+            box-shadow: inset 3px 0 #4385e6;
+        }
+        .acct-ws-link i {
+            display: grid; place-items: center;
+            flex: 0 0 28px; height: 28px; border-radius: 6px;
+            background: rgba(255,255,255,.09); color: #c4dcfa;
+        }
+        .acct-ws-link.active i { background: #dceaff; color: #244e80; }
+        .acct-ws-sidebar-foot { flex-shrink: 0; padding: 10px 12px; border-top: 1px solid rgba(255,255,255,.12); }
         .acct-ws-back {
             display: flex; align-items: center; gap: 8px; color: #fff; text-decoration: none;
-            padding: 10px 12px; border-radius: 8px; background: rgba(255,255,255,.1); font-weight: 600; font-size: .9rem;
+            padding: 10px 12px; border: 1px solid rgba(255,255,255,.18);
+            border-radius: 9px; background: rgba(255,255,255,.1); font-weight: 600; font-size: .9rem;
         }
         .acct-ws-back:hover { background: rgba(255,255,255,.18); color: #fff; }
-        .acct-ws-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+        .acct-ws-main { min-width: 0; display: flex; flex-direction: column; }
         .acct-ws-header {
             background: #fff; border-bottom: 1px solid #e2e8f0;
             padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
             position: sticky; top: 0; z-index: 1030;
         }
         .acct-ws-header-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .acct-ws-search { flex: 1 1 300px; max-width: 400px; margin-inline-start: auto; }
         .acct-ws-menu-btn {
             display: none; border: 1px solid #e2e8f0; background: #fff; border-radius: 8px;
             width: 40px; height: 40px; align-items: center; justify-content: center;
@@ -89,18 +114,22 @@
         .acct-ws-content { padding: 20px 22px 40px; max-width: 1400px; width: 100%; margin: 0 auto; }
         .acct-ws-backdrop { display: none; }
         @media (max-width: 991.98px) {
+            .acct-ws-shell { grid-template-columns: minmax(0, 1fr); }
             .acct-ws-sidebar {
+                width: min(var(--acct-sidebar-width), 100vw);
                 position: fixed; left: 0; top: 0; transform: translateX(-105%);
                 transition: transform .2s ease; box-shadow: 8px 0 24px rgba(0,0,0,.2);
             }
             body.acct-ws-open .acct-ws-sidebar { transform: translateX(0); }
             .acct-ws-menu-btn { display: inline-flex; }
+            .acct-ws-search { order: 1; flex-basis: 100%; max-width: none; }
             .acct-ws-backdrop {
                 display: none; position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 1035;
             }
             body.acct-ws-open .acct-ws-backdrop { display: block; }
         }
         @media print {
+            .acct-ws-shell { display: block; }
             .acct-ws-sidebar, .acct-ws-header, .acct-ws-backdrop { display: none !important; }
             .acct-ws-content { max-width: none; padding: 0; }
         }
@@ -110,7 +139,9 @@
 <body class="acct-workspace">
 @php
     $businessName = session('business.name') ?? config('app.name');
-    $userName = auth()->user()->name ?? 'User';
+    $user = auth()->user();
+    $userName = $user->name ?? 'User';
+    $canSearch = $user && ($user->isSystemAdmin() || $user->can_access('accounting.view'));
     $fy = function_exists('get_financial_year') ? get_financial_year() : date('Y');
 @endphp
 <div class="acct-ws-shell">
@@ -131,6 +162,14 @@
                     </div>
                 </div>
             </div>
+            @if($canSearch)
+                <form method="GET" action="{{ url('accounting/phase6/search') }}" class="acct-ws-search" role="search" aria-label="Accounting search">
+                    <div class="input-group input-group-sm">
+                        <input type="search" name="q" class="form-control" aria-label="Search invoice, bill, customer or amount" placeholder="Invoice, bill, customer or amount" value="{{ request()->is('accounting/phase6/search') ? request('q') : '' }}">
+                        <button type="submit" class="btn btn-outline-secondary" aria-label="Search"><i class="bi bi-search" aria-hidden="true"></i></button>
+                    </div>
+                </form>
+            @endif
             <div class="d-flex align-items-center gap-2 flex-wrap">
                 <span class="text-muted small d-none d-md-inline">{{ $userName }}</span>
                 <a href="{{ url('/erp/dashboard') }}" class="btn btn-sm btn-outline-secondary">

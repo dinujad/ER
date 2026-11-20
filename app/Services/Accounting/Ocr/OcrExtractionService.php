@@ -66,7 +66,7 @@ class OcrExtractionService
      * @param  array<string, mixed>|null  $forcedFields  test double payload
      * @return array<string, mixed>
      */
-    public function process(int $documentId, ?array $forcedFields = null): array
+    public function process(int $documentId, ?array $forcedFields = null, ?string $pastedText = null): array
     {
         $doc = DB::table('acct_ocr_documents')->where('id', $documentId)->first();
         if (! $doc) {
@@ -79,6 +79,10 @@ class OcrExtractionService
         ]);
 
         try {
+            if ($forcedFields === null && $pastedText !== null && trim($pastedText) !== '') {
+                // Reviewer pasted / typed the invoice text (scanned PDF, no OCR engine on the server).
+                $forcedFields = app(InvoiceTextParser::class)->parse($pastedText) + ['extract_method' => 'pasted'];
+            }
             $fields = $forcedFields ?? $this->extractFields($doc);
             $normalized = $this->normalizeFields($fields);
             $validation = $this->validateAmounts($normalized);
@@ -104,7 +108,7 @@ class OcrExtractionService
             $extractionId = (int) DB::table('acct_ocr_extractions')->insertGetId([
                 'ocr_document_id' => $documentId,
                 'business_id' => $doc->business_id,
-                'raw_text' => json_encode(['text' => $fields['raw_text'] ?? null]),
+                'raw_text' => json_encode(['text' => $fields['raw_text'] ?? null, 'method' => $fields['extract_method'] ?? null]),
                 'extracted_fields' => json_encode($normalized),
                 'line_items' => json_encode($normalized['line_items'] ?? []),
                 'validation_errors' => json_encode($validation['errors']),
@@ -186,24 +190,37 @@ class OcrExtractionService
 
         // Prefer linking as review candidate; only create purchase row if purchases table exists AND user confirmed
         if (! empty($fields['create_purchase_draft']) && Schema::hasTable('purchases')) {
-            $payload = [
-                'ref_no' => $fields['invoice_number'] ?? ('OCR-'.$documentId),
-                'purchase_date' => $fields['invoice_date'] ?? date('Y-m-d'),
-                'status' => 'draft',
-                'final_total' => round((float) ($fields['total'] ?? 0), 2),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
-            if (Schema::hasColumn('purchases', 'business_id')) {
-                $payload['business_id'] = $businessId;
+            $supplierId = (int) ($fields['supplier_id'] ?? 0);
+            if ($supplierId <= 0 || ! DB::table('suppliers')->where('id', $supplierId)->exists()) {
+                throw new RuntimeException('Choose the supplier before creating the draft bill.');
             }
-            if (Schema::hasColumn('purchases', 'supplier_id') && ! empty($fields['supplier_id'])) {
-                $payload['supplier_id'] = (int) $fields['supplier_id'];
+            if (! empty($fields['invoice_number']) && DB::table('purchases')->where('supplier_id', $supplierId)
+                ->where('reference_no', $fields['invoice_number'])->where('status', '!=', 'cancelled')->exists()) {
+                throw new RuntimeException('A bill with supplier invoice no. '.$fields['invoice_number'].' already exists for this supplier.');
             }
-            if (Schema::hasColumn('purchases', 'notes')) {
-                $payload['notes'] = 'OCR draft from document #'.$documentId.' — pending review; not posted.';
-            }
-            $draftId = (int) DB::table('purchases')->insertGetId($payload);
+            $total = round((float) ($fields['total'] ?? 0), 2);
+            $tax = round((float) ($fields['tax_amount'] ?? 0), 2);
+            $supplierVat = DB::table('suppliers')->where('id', $supplierId)->value('tax_vat_no');
+
+            \App\Models\Purchase::lockPurchaseNumberGeneration();
+            $purchase = \App\Models\Purchase::query()->create([
+                'purchase_no' => \App\Models\Purchase::generatePurchaseNo(),
+                'date' => $fields['invoice_date'] ?? date('Y-m-d'),
+                'supplier_id' => $supplierId,
+                'purchase_type' => \App\Models\Purchase::TYPE_CREDIT,
+                'reference_no' => $fields['invoice_number'] ?? ('OCR-'.$documentId),
+                'notes' => 'Draft from scanned supplier invoice (OCR document #'.$documentId.'). Add the items, check and confirm.',
+                'status' => \App\Models\Purchase::STATUS_DRAFT,
+                'subtotal' => round($total - $tax, 2),
+                'discount_amount' => round((float) ($fields['discount'] ?? 0), 2),
+                'tax_amount' => $tax,
+                'shipping_cost' => 0,
+                'total' => $total,
+                'paid_amount' => 0,
+                'input_vat_claimable' => $tax > 0 && filled($supplierVat),
+                'created_by' => $userId,
+            ]);
+            $draftId = (int) $purchase->id;
             $draftType = 'purchase';
         }
 
@@ -228,13 +245,22 @@ class OcrExtractionService
      */
     protected function extractFields(object $doc): array
     {
-        // Real OCR providers would be plugged here. Without credentials, return empty (no invention).
-        if ($this->driver() !== 'fake') {
-            // Placeholder for live OCR adapter — still must not invent if call fails
+        // 'fake' driver (tests / demo): never invents values.
+        if ($this->driver() === 'fake') {
             return ['raw_text' => null, 'confidence' => 0];
         }
 
-        return ['raw_text' => null, 'confidence' => 0];
+        try {
+            $path = Storage::disk($doc->storage_disk ?: 'local')->path($doc->storage_path);
+        } catch (\Throwable) {
+            return ['raw_text' => null, 'confidence' => 0, 'extract_method' => 'none'];
+        }
+        $read = app(DocumentTextExtractor::class)->extract($path, (string) $doc->mime_type);
+        if ($read['text'] === null) {
+            return ['raw_text' => null, 'confidence' => 0, 'extract_method' => 'none'];
+        }
+
+        return app(InvoiceTextParser::class)->parse($read['text']) + ['extract_method' => $read['method']];
     }
 
     /**
@@ -263,6 +289,10 @@ class OcrExtractionService
             'payment_info' => $fields['payment_info'] ?? null,
             'confidence' => isset($fields['confidence']) ? (float) $fields['confidence'] : null,
             'tax_inclusive' => (bool) ($fields['tax_inclusive'] ?? false),
+            'supplier_vat_no' => $fields['supplier_vat_no'] ?? null,
+            'sscl_amount' => isset($fields['sscl_amount']) ? round((float) $fields['sscl_amount'], 2) : null,
+            'field_confidence' => $fields['field_confidence'] ?? [],
+            'extract_method' => $fields['extract_method'] ?? null,
         ];
     }
 

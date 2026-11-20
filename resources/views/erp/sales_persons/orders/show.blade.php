@@ -85,6 +85,16 @@
                             <th colspan="3" class="text-end">Total Amount:</th>
                             <th>{{ number_format($order->total_amount, 2) }}</th>
                         </tr>
+                        @if($order->chargesInvoiceTax())
+                        <tr>
+                            <th colspan="3" class="text-end">SSCL + VAT:</th>
+                            <th>{{ number_format($order->invoice_tax_amount, 2) }}</th>
+                        </tr>
+                        <tr>
+                            <th colspan="3" class="text-end">Invoice Total (incl. SSCL &amp; VAT):</th>
+                            <th>{{ number_format($order->invoice_total, 2) }}</th>
+                        </tr>
+                        @endif
                         <tr>
                             <th colspan="3" class="text-end">Paid Amount:</th>
                             <th class="text-success">{{ number_format($order->paid_amount, 2) }}</th>

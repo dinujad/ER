@@ -64,6 +64,12 @@
         </a>
 
         <div class="acct-ws-section">Banking</div>
+        <a href="{{ url('accounting/banking') }}" class="acct-ws-link {{ request()->is('accounting/banking*') ? 'active' : '' }}">
+            <i class="bi bi-bank2"></i> Bank Accounts
+        </a>
+        <a href="{{ url('accounting/phase7/reconcile') }}" class="acct-ws-link {{ request()->is('accounting/phase7/reconcile*') ? 'active' : '' }}">
+            <i class="bi bi-check2-square"></i> Review Transactions
+        </a>
         <a href="{{ url('accounting/reconcile') }}" class="acct-ws-link {{ request()->is('accounting/reconcile*') ? 'active' : '' }}">
             <i class="bi bi-bank"></i> Reconciliation
         </a>
@@ -75,6 +81,34 @@
         </a>
         <a href="{{ url('accounting/bank-reconciliation-report') }}" class="acct-ws-link {{ request()->is('accounting/bank-reconciliation-report*') ? 'active' : '' }}">
             <i class="bi bi-filetype-pdf"></i> Recon Report PDF
+        </a>
+
+        <div class="acct-ws-section">Sales &amp; Invoices</div>
+        <a href="{{ url('accounting/phase6/invoices') }}" class="acct-ws-link {{ request()->is('accounting/phase6/invoices*') ? 'active' : '' }}">
+            <i class="bi bi-receipt-cutoff"></i> Sales Invoices
+        </a>
+        <a href="{{ url('accounting/phase6/receivables/overdue') }}" class="acct-ws-link {{ request()->is('accounting/phase6/receivables*') ? 'active' : '' }}">
+            <i class="bi bi-alarm"></i> Overdue &amp; Reminders
+        </a>
+        <a href="{{ url('accounting/phase7/reminders') }}" class="acct-ws-link {{ request()->is('accounting/phase7/reminders*') ? 'active' : '' }}">
+            <i class="bi bi-chat-dots"></i> Reminder History
+        </a>
+        <a href="{{ url('accounting/phase7/recurring-queue') }}" class="acct-ws-link {{ request()->is('accounting/phase7/recurring-queue*') ? 'active' : '' }}">
+            <i class="bi bi-arrow-repeat"></i> Recurring Queue
+        </a>
+        <a href="{{ url('accounting/phase6/credit-notes') }}" class="acct-ws-link {{ request()->is('accounting/phase6/credit-notes*') ? 'active' : '' }}">
+            <i class="bi bi-file-earmark-minus"></i> Credit Notes
+        </a>
+        <a href="{{ url('accounting/phase6/account-transactions') }}" class="acct-ws-link {{ request()->is('accounting/phase6/account-transactions*') ? 'active' : '' }}">
+            <i class="bi bi-search"></i> Account Transactions
+        </a>
+
+        <div class="acct-ws-section">VAT &amp; SSCL</div>
+        <a href="{{ url('accounting/phase6/vat-return') }}" class="acct-ws-link {{ request()->is('accounting/phase6/vat-return*') ? 'active' : '' }}">
+            <i class="bi bi-percent"></i> VAT &amp; SSCL Return
+        </a>
+        <a href="{{ url('accounting/phase6/tax-invoice-register') }}" class="acct-ws-link {{ request()->is('accounting/phase6/tax-invoice-register*') ? 'active' : '' }}">
+            <i class="bi bi-list-ol"></i> Tax Invoice Register
         </a>
 
         <div class="acct-ws-section">Receivables</div>
@@ -92,6 +126,15 @@
         </a>
 
         <div class="acct-ws-section">Payables</div>
+        <a href="{{ url('accounting/phase6/bills') }}" class="acct-ws-link {{ request()->is('accounting/phase6/bills') || request()->is('accounting/phase6/bills/[0-9]*') ? 'active' : '' }}">
+            <i class="bi bi-file-earmark-text"></i> Bills
+        </a>
+        <a href="{{ url('accounting/phase6/bills/payment-run') }}" class="acct-ws-link {{ request()->is('accounting/phase6/bills/payment-run*') ? 'active' : '' }}">
+            <i class="bi bi-cash-stack"></i> Pay Bills
+        </a>
+        <a href="{{ url('accounting/phase7/payment-runs') }}" class="acct-ws-link {{ request()->is('accounting/phase7/payment-runs*') ? 'active' : '' }}">
+            <i class="bi bi-collection"></i> Payment Runs
+        </a>
         <a href="{{ url('accounting/payables/supplier-ledger') }}" class="acct-ws-link {{ request()->is('accounting/payables/supplier-ledger*') ? 'active' : '' }}">
             <i class="bi bi-building"></i> Supplier Ledger
         </a>
@@ -161,11 +204,20 @@
         </a>
 
         <div class="acct-ws-section">Accounting Controls</div>
+        <a href="{{ url('accounting/phase7/close') }}" class="acct-ws-link {{ request()->is('accounting/phase7/close*') ? 'active' : '' }}">
+            <i class="bi bi-calendar-check"></i> Month-end Close
+        </a>
         <a href="{{ url('accounting/periods') }}" class="acct-ws-link {{ request()->is('accounting/periods*') ? 'active' : '' }}">
             <i class="bi bi-lock"></i> Accounting Periods
         </a>
         <a href="{{ url('accounting/audit-log') }}" class="acct-ws-link {{ request()->is('accounting/audit-log*') ? 'active' : '' }}">
             <i class="bi bi-shield-check"></i> Audit Log
+        </a>
+        <a href="{{ url('accounting/phase6/audit-trail') }}" class="acct-ws-link {{ request()->is('accounting/phase6/audit-trail*') ? 'active' : '' }}">
+            <i class="bi bi-person-lines-fill"></i> Audit Trail (who did what)
+        </a>
+        <a href="{{ url('accounting/phase6/recode') }}" class="acct-ws-link {{ request()->is('accounting/phase6/recode*') ? 'active' : '' }}">
+            <i class="bi bi-arrow-left-right"></i> Find &amp; Recode
         </a>
 
         <div class="acct-ws-section">AI &amp; Automation</div>

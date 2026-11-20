@@ -15,7 +15,7 @@ use Illuminate\Support\Collection;
 
 class PreviewTaxInvoicePdfCommand extends Command
 {
-    protected $signature = 'dermas:preview-tax-invoice {--out=}';
+    protected $signature = 'dermas:preview-tax-invoice {--out=} {--no-tin : Preview for a non-VAT-registered purchaser (VAT folded into item prices)} {--show-sscl : With --no-tin, print SSCL on its own line instead of folding it into items} {--discount=0} {--transport=0}';
 
     protected $description = 'Render a sample TAX INVOICE PDF (gazette layout) for preview';
 
@@ -41,7 +41,7 @@ class PreviewTaxInvoicePdfCommand extends Command
             'business_name' => 'Bandarawela Fashion House',
             'business_address' => 'Main Street, Bandarawela',
             'phone' => '0771234567',
-            'tin' => '123456789',
+            'tin' => $this->option('no-tin') ? null : '123456789',
         ]);
 
         $salesPerson = new User(['name' => 'Kasun Silva', 'phone' => '0771039230']);
@@ -81,10 +81,11 @@ class PreviewTaxInvoicePdfCommand extends Command
             'invoice_number' => '26JUL-DERM-1001',
             'status' => Order::STATUS_COMPLETED,
             'subtotal' => 23250,
-            'discount_amount' => 0,
-            'shipping' => 0,
+            'discount_amount' => (float) $this->option('discount'),
+            'shipping' => (float) $this->option('transport'),
             'invoice_other_expenses' => 0,
-            'total_amount' => 23250,
+            'invoice_show_sscl' => (bool) $this->option('show-sscl'),
+            'total_amount' => round(23250 - (float) $this->option('discount') + (float) $this->option('transport'), 2),
             'issued_bags_count' => 2,
             'issued_bundle_count' => 1,
             'order_date' => $now->toDateString(),

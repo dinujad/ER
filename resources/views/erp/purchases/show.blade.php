@@ -4,6 +4,9 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
     <h4 class="mb-0">Purchase {{ $purchase->purchase_no }}</h4>
     <div class="d-flex gap-2">
+        @if(auth()->user()?->isSystemAdmin() || auth()->user()?->can_access('accounting.view'))
+        <a href="{{ url('accounting/phase6/bills/' . $purchase->id) }}" class="btn btn-outline-dark" title="Lines, VAT, payments, journal entries and history"><i class="bi bi-journal-text"></i> Accounting view</a>
+        @endif
         @if($purchase->status === \App\Models\Purchase::STATUS_DRAFT)
         @canRoute('purchases.edit')
 <a href="{{ route('purchases.edit', $purchase) }}" class="btn btn-outline-primary">Edit</a>

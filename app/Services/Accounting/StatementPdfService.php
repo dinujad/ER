@@ -42,7 +42,7 @@ class StatementPdfService
                 ->get()
             : collect();
 
-        $invoiceTotal = round((float) $orders->sum(fn ($o) => (float) ($o->total_amount ?? $o->final_total ?? 0)), 2);
+        $invoiceTotal = round((float) $orders->sum(fn ($o) => self::billedTotal($o)), 2);
         $paidTotal = round((float) $payments->sum(fn ($p) => (float) ($p->amount ?? 0)), 2);
 
         $opening = self::customerBalanceBefore($customerId, $from);
@@ -173,7 +173,7 @@ class StatementPdfService
                 ->whereNotIn('status', ['cancelled', 'quotation', 'draft'])
                 ->get();
             foreach ($orders as $o) {
-                $total = round((float) ($o->total_amount ?? 0), 2);
+                $total = self::billedTotal($o);
                 $paid = 0.0;
                 if (Schema::hasTable('payments')) {
                     $pq = DB::table('payments')->where('order_id', $o->id);
@@ -265,13 +265,28 @@ class StatementPdfService
         ];
     }
 
+    /** Billed amount of an orders row: goods + SSCL + VAT charged on the invoice (legacy rows: goods only). */
+    protected static function billedTotal(object $o): float
+    {
+        return round((float) ($o->total_amount ?? $o->final_total ?? 0)
+            + (float) ($o->invoice_sscl_amount ?? 0)
+            + (float) ($o->invoice_vat_amount ?? 0), 2);
+    }
+
+    protected static function billedTotalSql(): string
+    {
+        return Schema::hasColumn('orders', 'invoice_sscl_amount')
+            ? \App\Models\Order::invoiceTotalSql()
+            : 'orders.total_amount';
+    }
+
     protected static function customerBalanceBefore(int $customerId, string $before): float
     {
         $inv = 0.0;
         $paid = 0.0;
         if (Schema::hasTable('orders')) {
             $col = Schema::hasColumn('orders', 'order_date') ? 'order_date' : 'created_at';
-            $inv = round((float) DB::table('orders')->where('customer_id', $customerId)->whereDate($col, '<', $before)->sum('total_amount'), 2);
+            $inv = round((float) DB::table('orders')->where('customer_id', $customerId)->whereDate($col, '<', $before)->sum(DB::raw(self::billedTotalSql())), 2);
         }
         if (Schema::hasTable('payments')) {
             $paid = round((float) DB::table('payments')

@@ -101,7 +101,7 @@
                     @forelse($orders as $order)
                         @php
                             $paid = (float) ($order->payments_sum_amount ?? 0);
-                            $due = max(0, (float) $order->total_amount - $paid);
+                            $due = max(0, $order->invoice_total - $paid);
                         @endphp
                         <tr class="{{ $due > 0.00001 ? 'table-warning' : '' }}">
                             <td class="fw-semibold">{{ $order->order_number }}</td>
@@ -111,7 +111,7 @@
                                 {{ ($order->salesPerson && $order->salesPerson->role === 'sales_person') ? $order->salesPerson->name : '—' }}
                             </td>
                             <td><span class="badge bg-secondary">{{ ucfirst($order->status) }}</span></td>
-                            <td class="text-end font-monospace">{{ number_format((float) $order->total_amount, 2) }}</td>
+                            <td class="text-end font-monospace">{{ number_format($order->invoice_total, 2) }}</td>
                             <td class="text-end font-monospace text-success">{{ number_format($paid, 2) }}</td>
                             <td class="text-end font-monospace {{ $due > 0.00001 ? 'text-danger fw-semibold' : 'text-muted' }}">{{ number_format($due, 2) }}</td>
                             <td class="text-end text-nowrap">

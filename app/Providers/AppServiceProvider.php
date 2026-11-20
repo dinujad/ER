@@ -39,6 +39,8 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        // Wait & retry when MySQL is full (1040 / 1203) instead of failing the request at once.
+        $this->app->bind('db.connector.mysql', \App\Database\RetryingMySqlConnector::class);
         $this->app->singleton('module.manager', fn () => new ModuleManager());
         $this->app->singleton(NoopActivityLogger::class, fn () => new NoopActivityLogger());
     }

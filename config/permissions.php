@@ -162,6 +162,13 @@ return [
             'accounting.ai.ocr' => 'Use Smart Document Capture (OCR)',
             'accounting.ai.review' => 'Review AI suggestions',
             'accounting.ai.manage' => 'Manage AI settings and automation',
+            'accounting.audit.view' => 'View Audit Trail (who did what)',
+            'accounting.invoices.void' => 'Void sales invoices',
+            'accounting.credit_notes.manage' => 'Issue / void credit notes',
+            'accounting.reminders.send' => 'Send payment reminders (SMS)',
+            'accounting.vat.view' => 'View VAT & SSCL returns',
+            'accounting.bills.approve' => 'Approve bills for payment',
+            'accounting.recode' => 'Find & recode journal lines',
         ],
     ],
     'users' => [

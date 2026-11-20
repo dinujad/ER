@@ -35,9 +35,10 @@
     @forelse($register['rows'] as $row)
         <tr>
             <td>{{ $row->date }}</td>
-            <td>{{ $row->transaction_number }}</td>
+            <td><a href="{{ url('accounting/phase6/journal/' . urlencode($row->transaction_number)) }}">{{ $row->transaction_number }}</a></td>
             <td>{{ $row->description }}</td>
-            <td class="small">{{ $row->source_type }}{{ $row->source_id ? '#'.$row->source_id : '' }}</td>
+            @php $src = \App\Services\Accounting\SourceDocumentResolver::resolve($row->source_type ?? null, $row->source_id ?? null); @endphp
+            <td class="small">@if(!empty($row->source_type))@if($src['url'])<a href="{{ $src['url'] }}">{{ $src['label'] }}</a>@else{{ $src['label'] }}@endif @endif</td>
             <td class="text-end">{{ $row->debit }}</td>
             <td class="text-end">{{ $row->credit }}</td>
             <td class="text-end">{{ $row->running_balance }}</td>

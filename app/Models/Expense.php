@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Expense extends Model
 {
+    use \App\Models\Concerns\Auditable;
+
     protected $fillable = [
         'expense_category_id',
         'amount',
@@ -36,5 +38,10 @@ class Expense extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function auditLabel(): string
+    {
+        return 'Expense #' . $this->getKey() . ($this->reference ? ' (' . $this->reference . ')' : '');
     }
 }

@@ -12,6 +12,8 @@ use Illuminate\Support\Collection;
 #[ObservedBy([OrderObserver::class])]
 class Order extends Model
 {
+    use \App\Models\Concerns\Auditable;
+
     use HasFactory;
 
     protected $fillable = [
@@ -30,6 +32,10 @@ class Order extends Model
         'tax_value',
         'shipping',
         'invoice_other_expenses',
+        'invoice_show_sscl',
+        'invoice_vat_code',
+        'invoice_vat_inclusive',
+        'invoice_sscl_inclusive',
         'status',
         'is_urgent',
         'order_date',
@@ -138,7 +144,259 @@ class Order extends Model
     protected $casts = [
         'order_date' => 'datetime',
         'is_urgent' => 'boolean',
+        'invoice_show_sscl' => 'boolean',
+        'invoice_sscl_amount' => 'float',
+        'invoice_vat_amount' => 'float',
+        'invoice_goods_amount' => 'float',
+        'invoice_vat_inclusive' => 'boolean',
+        'invoice_sscl_inclusive' => 'boolean',
+        'invoice_date' => 'date',
+        'invoice_due_date' => 'date',
+        'invoice_voided_at' => 'datetime',
+        'last_reminder_at' => 'datetime',
     ];
+
+    /** Xero-style invoice status labels (Phase 6.2 / 6.4). */
+    public const INVOICE_STATUS_LABELS = [
+        'draft' => 'Draft',
+        'awaiting_payment' => 'Awaiting payment',
+        'partially_paid' => 'Partially paid',
+        'overdue' => 'Overdue',
+        'paid' => 'Paid',
+        'credited' => 'Fully credited',
+        'voided' => 'Voided',
+        'cancelled' => 'Cancelled',
+    ];
+
+    public const INVOICE_STATUS_BADGES = [
+        'draft' => 'bg-secondary',
+        'awaiting_payment' => 'bg-primary',
+        'partially_paid' => 'bg-info text-dark',
+        'overdue' => 'bg-danger',
+        'paid' => 'bg-success',
+        'credited' => 'bg-dark',
+        'voided' => 'bg-light text-muted border',
+        'cancelled' => 'bg-light text-muted border',
+    ];
+
+    public function isInvoiceIssued(): bool
+    {
+        return filled($this->invoice_number)
+            && in_array($this->status, [self::STATUS_COMPLETED, self::STATUS_PAID, self::STATUS_CREDIT], true);
+    }
+
+    /** Invoice date: when issued (falls back to order date for invoices issued before Phase 6). */
+    public function invoiceDate(): ?Carbon
+    {
+        $date = $this->invoice_date ?? $this->order_date ?? $this->created_at;
+
+        return $date ? Carbon::parse($date)->startOfDay() : null;
+    }
+
+    public function paymentTermsDays(): int
+    {
+        if ($this->payment_terms_days !== null) {
+            return (int) $this->payment_terms_days;
+        }
+        $customerTerms = $this->customer?->payment_terms_days;
+
+        return $customerTerms !== null ? (int) $customerTerms : (int) config('dermas.default_payment_terms_days', 30);
+    }
+
+    public function invoiceDueDate(): ?Carbon
+    {
+        if ($this->invoice_due_date) {
+            return Carbon::parse($this->invoice_due_date)->startOfDay();
+        }
+        $date = $this->invoiceDate();
+
+        return $date ? $date->copy()->addDays($this->paymentTermsDays()) : null;
+    }
+
+    /** Set invoice date, terms and due date when the invoice is issued. */
+    public function stampInvoiceDates(?\DateTimeInterface $issuedOn = null): void
+    {
+        $date = Carbon::parse($issuedOn ?? now())->startOfDay();
+        $terms = $this->paymentTermsDays();
+        $this->invoice_date = $date->toDateString();
+        $this->payment_terms_days = $terms;
+        $this->invoice_due_date = $date->copy()->addDays($terms)->toDateString();
+    }
+
+    public function invoiceStatus(): string
+    {
+        if ($this->invoice_voided_at || $this->status === self::STATUS_CANCELLED && filled($this->invoice_number)) {
+            return 'voided';
+        }
+        if ($this->status === self::STATUS_CANCELLED) {
+            return 'cancelled'; // cancelled before an invoice was issued
+        }
+        if (!$this->isInvoiceIssued()) {
+            return 'draft';
+        }
+        if ($this->net_total <= 0.009) {
+            return 'credited';
+        }
+        $due = (float) $this->due_amount;
+        if ($due <= 0.009) {
+            return 'paid';
+        }
+        $dueDate = $this->invoiceDueDate();
+        if ($dueDate && $dueDate->lt(now()->startOfDay())) {
+            return 'overdue';
+        }
+
+        return $due < $this->net_total - 0.009 ? 'partially_paid' : 'awaiting_payment';
+    }
+
+    public function invoiceStatusLabel(): string
+    {
+        return self::INVOICE_STATUS_LABELS[$this->invoiceStatus()] ?? ucfirst($this->invoiceStatus());
+    }
+
+    public function invoiceStatusBadge(): string
+    {
+        return self::INVOICE_STATUS_BADGES[$this->invoiceStatus()] ?? 'bg-secondary';
+    }
+
+    /** AR ageing bucket of an overdue invoice. */
+    public function ageingBucket(): string
+    {
+        $days = $this->daysOverdue();
+
+        return match (true) {
+            $days <= 30 => '1–30 days',
+            $days <= 60 => '31–60 days',
+            $days <= 90 => '61–90 days',
+            default => 'Over 90 days',
+        };
+    }
+
+    public function daysOverdue(): int
+    {
+        $dueDate = $this->invoiceDueDate();
+        if (!$dueDate || (float) $this->due_amount <= 0.009) {
+            return 0;
+        }
+
+        return max(0, (int) $dueDate->diffInDays(now()->startOfDay(), false));
+    }
+
+    protected static function booted(): void
+    {
+        // Keep charged SSCL / VAT in step with the goods value (e.g. Edit Invoice changes transport).
+        static::saving(function (Order $order) {
+            if ($order->chargesInvoiceTax() && $order->isDirty(['total_amount', 'invoice_vat_code', 'invoice_vat_inclusive', 'invoice_sscl_inclusive'])) {
+                $order->applyInvoiceTax();
+            }
+        });
+    }
+
+    /** SQL for what the customer is billed: goods + charged SSCL + charged VAT (legacy orders: goods only). */
+    public static function invoiceTotalSql(string $table = 'orders'): string
+    {
+        $goods = static::hasTaxColumns('orders.invoice_goods_amount')
+            ? "COALESCE({$table}.invoice_goods_amount, {$table}.total_amount)"
+            : "{$table}.total_amount";
+        $billed = "{$goods} + COALESCE({$table}.invoice_sscl_amount, 0) + COALESCE({$table}.invoice_vat_amount, 0)";
+        if (static::hasTaxColumns('orders.invoice_voided_at')) {
+            $billed = "CASE WHEN {$table}.invoice_voided_at IS NOT NULL THEN 0 ELSE {$billed} END";
+        }
+
+        return "({$billed})";
+    }
+
+    /** @var array<string, bool> */
+    private static array $schemaCache = [];
+
+    /** Cached schema checks so new Phase 6 columns are optional until migrations run. */
+    public static function hasTaxColumns(string $key): bool
+    {
+        if (!array_key_exists($key, self::$schemaCache)) {
+            try {
+                self::$schemaCache[$key] = match ($key) {
+                    'credit_notes_table' => \Illuminate\Support\Facades\Schema::hasTable('credit_notes'),
+                    'orders.invoice_voided_at' => \Illuminate\Support\Facades\Schema::hasColumn('orders', 'invoice_voided_at'),
+                    'orders.invoice_goods_amount' => \Illuminate\Support\Facades\Schema::hasColumn('orders', 'invoice_goods_amount'),
+                    default => false,
+                };
+            } catch (\Throwable) {
+                self::$schemaCache[$key] = false;
+            }
+        }
+
+        return self::$schemaCache[$key];
+    }
+
+    public static function flushSchemaCache(): void
+    {
+        self::$schemaCache = [];
+    }
+
+    /** True when SSCL + VAT were added on top of total_amount when the invoice was issued. */
+    public function chargesInvoiceTax(): bool
+    {
+        return $this->invoice_sscl_amount !== null || $this->invoice_vat_amount !== null;
+    }
+
+    /** Charge SSCL + VAT on the item total, added on top or extracted from it per the invoice's choices. */
+    public function applyInvoiceTax(): void
+    {
+        $vat = $this->computeOwnTax();
+        $this->invoice_sscl_amount = $vat['sscl'];
+        $this->invoice_vat_amount = $vat['vat'];
+        if (static::hasTaxColumns('orders.invoice_goods_amount')) {
+            $this->invoice_goods_amount = abs($vat['goods'] - (float) $this->total_amount) < 0.005 ? null : $vat['goods'];
+        }
+    }
+
+    /** Tax on this order's item total with its VAT treatment and added / included choices. */
+    public function computeOwnTax(): array
+    {
+        return static::computeInvoiceTax(
+            (float) $this->total_amount,
+            \App\Support\VatTreatment::vatRate($this->invoice_vat_code),
+            (bool) $this->invoice_sscl_inclusive,
+            (bool) $this->invoice_vat_inclusive
+        );
+    }
+
+    /** Taxable value excluding all SSCL and VAT — what is posted to Sales. */
+    public function goodsValue(): float
+    {
+        return round((float) ($this->invoice_goods_amount ?? $this->total_amount), 2);
+    }
+
+    /** SSCL / VAT that is already inside the item prices (not added on top). */
+    public function getInvoiceTaxIncludedAttribute(): float
+    {
+        return round(max(0, (float) $this->total_amount - $this->goodsValue()), 2);
+    }
+
+    public function getInvoiceTaxAmountAttribute(): float
+    {
+        return round((float) ($this->invoice_sscl_amount ?? 0) + (float) ($this->invoice_vat_amount ?? 0), 2);
+    }
+
+    /** Amount the customer is billed / owes before returns and payments. */
+    public function getInvoiceTotalAttribute(): float
+    {
+        return round($this->goodsValue() + $this->invoice_tax_amount, 2);
+    }
+
+    /** Goods value → billed value multiplier (1 for legacy / untaxed orders). Used to price returns incl. tax. */
+    public function invoiceTaxMultiplier(): float
+    {
+        $goods = (float) $this->total_amount;
+
+        return $goods > 0 && $this->chargesInvoiceTax() ? $this->invoice_total / $goods : 1.0;
+    }
+
+    /** Converts a goods-value amount (e.g. a sale return total) to what it is worth on this invoice incl. tax. */
+    public function withInvoiceTax(float $goodsAmount): float
+    {
+        return round($goodsAmount * $this->invoiceTaxMultiplier(), 2);
+    }
 
     public function store()
     {
@@ -304,7 +562,7 @@ class Order extends Model
 
         $claim = (float) ($this->claim_credit_amount ?? 0);
         $covered = round($paidSettlement - $refunded + $claim, 2);
-        $net = max(0, round((float) $this->total_amount - (float) $this->total_returned, 2));
+        $net = $this->net_total;
         $dueOpen = max(0, round($net - $paidSettlement + $refunded - $claim, 2));
 
         if ($covered <= 0.009 && $dueOpen > 0.009) {
@@ -385,9 +643,39 @@ class Order extends Model
         return round((float) $this->saleReturns()->sum('total'), 2);
     }
 
+    /** Returned goods valued as billed on this invoice (incl. SSCL + VAT when charged). */
+    public function getTotalReturnedBilledAttribute(): float
+    {
+        return $this->withInvoiceTax($this->total_returned);
+    }
+
+    /** Adjustment credit notes (price reductions) on this invoice — Phase 6.4. */
+    public function creditNotes()
+    {
+        return $this->hasMany(CreditNote::class);
+    }
+
+    public function getCreditNotesTotalAttribute(): float
+    {
+        if (!static::hasTaxColumns('credit_notes_table')) {
+            return 0.0;
+        }
+        $notes = $this->relationLoaded('creditNotes')
+            ? $this->creditNotes
+            : $this->creditNotes()->get(['id', 'type', 'status', 'total']);
+
+        return round((float) $notes->where('type', CreditNote::TYPE_ADJUSTMENT)
+            ->where('status', '!=', CreditNote::STATUS_VOID)->sum('total'), 2);
+    }
+
+    /** Billed total less returns and credit notes — the base for due. A voided invoice owes nothing. */
     public function getNetTotalAttribute(): float
     {
-        return max(0, round((float) $this->total_amount - $this->total_returned, 2));
+        if ($this->invoice_voided_at) {
+            return 0.0;
+        }
+
+        return max(0, round($this->invoice_total - $this->total_returned_billed - $this->credit_notes_total, 2));
     }
 
     public function getTotalRefundedAttribute(): float
@@ -559,12 +847,50 @@ class Order extends Model
      */
     public function taxInvoiceVatBreakdown(): array
     {
-        $ssclRate = max(0, (float) config('dermas.sscl_rate', 2.5));
-        $vatRate = max(0, (float) config('dermas.vat_rate', 18));
-        $goods = round((float) $this->total_amount, 2);
-        $sscl = $ssclRate > 0 ? round($goods * ($ssclRate / 100), 2) : 0.0;
+        // Issued with tax charged → print exactly what was charged (survives later rate changes).
+        $computed = $this->computeOwnTax();
+        if (!$this->chargesInvoiceTax()) {
+            return $computed;
+        }
+
+        $goods = $this->goodsValue();
+        $sscl = round((float) ($this->invoice_sscl_amount ?? 0), 2);
         $supply = round($goods + $sscl, 2);
-        $vat = $vatRate > 0 ? round($supply * ($vatRate / 100), 2) : 0.0;
+        $vat = round((float) ($this->invoice_vat_amount ?? 0), 2);
+
+        return array_merge($computed, [
+            'sscl' => $sscl,
+            'supply' => $supply,
+            'exclusive' => $supply,
+            'vat' => $vat,
+            'inclusive' => round($supply + $vat, 2),
+        ]);
+    }
+
+    /**
+     * SSCL on goods, then VAT on (goods + SSCL), at the configured rates.
+     *
+     * $amount is the item total. Each tax is either added on top of it, or already inside it:
+     *   SSCL included → goods = amount / (1 + SSCL rate) ; VAT included → also ÷ (1 + VAT rate).
+     * When both are included the invoice total equals the item total exactly (rounding goes to VAT).
+     */
+    public static function computeInvoiceTax(float $amount, ?float $vatRate = null, bool $ssclIncluded = false, bool $vatIncluded = false): array
+    {
+        $ssclRate = max(0.0, (float) config('dermas.sscl_rate', 2.5));
+        $vatRate = max(0.0, (float) ($vatRate ?? config('dermas.vat_rate', 18)));
+        $rs = $ssclRate / 100;
+        $rv = $vatRate / 100;
+        $amount = round($amount, 2);
+
+        $divisor = ($ssclIncluded ? 1 + $rs : 1) * ($vatIncluded ? 1 + $rv : 1);
+        $goods = round($amount / $divisor, 2);
+        $sscl = $ssclIncluded && !$vatIncluded
+            ? round($amount - $goods, 2)
+            : ($rs > 0 ? round($goods * $rs, 2) : 0.0);
+        $supply = round($goods + $sscl, 2);
+        $vat = $ssclIncluded && $vatIncluded
+            ? round($amount - $supply, 2)
+            : ($rv > 0 ? round($supply * $rv, 2) : 0.0);
 
         return [
             'goods' => $goods,
@@ -575,6 +901,87 @@ class Order extends Model
             'exclusive' => $supply,
             'vat' => $vat,
             'inclusive' => round($supply + $vat, 2),
+        ];
+    }
+
+    /**
+     * Everything the printed invoice table needs, so that every row the customer sees adds up.
+     *
+     * - Purchaser has a TIN → TAX INVOICE: lines exclusive of tax, then SSCL, supply, VAT, total.
+     * - No TIN → normal INVOICE, VAT folded into prices, and SSCL either:
+     *     invoice_show_sscl = true  → all VAT in the lines, own "SSCL x%" row = x% of goods value
+     *                                 (exactly the SSCL figure a tax invoice would show);
+     *     invoice_show_sscl = false → folded into every line together with VAT.
+     *
+     * Each item row keeps unit price × quantity = amount. Any cents left over from rounding
+     * are printed on a "Rounding adjustment" row instead of being hidden in a line.
+     *
+     * @param  Collection<int, array{reference: string, description: string, quantity: float, unit_price: float, amount: float}>  $items
+     */
+    public function invoicePresentation(Collection $items): array
+    {
+        $vat = $this->taxInvoiceVatBreakdown();
+        $isTaxInvoice = filled($this->customer?->tin);
+        $showSscl = $isTaxInvoice || (bool) $this->invoice_show_sscl;
+
+        $adjustments = array_values(array_filter([
+            ['label' => 'Less: Discount', 'amount' => -round((float) ($this->discount_amount ?? 0), 2)],
+            ['label' => 'Add: Transport', 'amount' => round((float) ($this->shipping ?? 0), 2)],
+            ['label' => 'Add: Other expenses', 'amount' => round((float) ($this->invoice_other_expenses ?? 0), 2)],
+        ], fn (array $row) => abs($row['amount']) >= 0.005));
+
+        $goods = $vat['goods'];
+        $base = (float) $this->total_amount; // item lines + discount / transport add up to this
+        if ($base <= 0) {
+            $factor = 1.0;
+        } elseif ($isTaxInvoice) {
+            // Tax invoice lines are exclusive of tax (strips any SSCL / VAT already inside the prices).
+            $factor = $goods / $base;
+        } elseif ($showSscl) {
+            // All VAT goes into the lines; SSCL row is the statutory figure (same as on a tax invoice).
+            $factor = ($vat['inclusive'] - $vat['sscl']) / $base;
+        } else {
+            $factor = $vat['inclusive'] / $base;
+        }
+
+        $items = $items->map(function (array $item) use ($factor) {
+            $qty = (float) $item['quantity'];
+            $unit = round($item['unit_price'] * $factor, 2);
+            $lineIsUnitTimesQty = abs($item['amount'] - $item['unit_price'] * $qty) < 0.01;
+            $item['unit_price'] = $unit;
+            $item['amount'] = $lineIsUnitTimesQty
+                ? round($unit * $qty, 2)
+                : round($item['amount'] * $factor, 2);
+
+            return $item;
+        })->values();
+
+        $adjustments = array_map(function (array $row) use ($factor) {
+            $row['amount'] = round($row['amount'] * $factor, 2);
+
+            return $row;
+        }, $adjustments);
+
+        $linesTotal = round($items->sum('amount') + array_sum(array_column($adjustments, 'amount')), 2);
+
+        if ($isTaxInvoice) {
+            $ssclRow = $vat['sscl'];
+            $target = $goods;
+        } else {
+            $ssclRow = $showSscl ? $vat['sscl'] : 0.0;
+            $target = round($vat['inclusive'] - $ssclRow, 2);
+        }
+
+        return [
+            'is_tax_invoice' => $isTaxInvoice,
+            'show_sscl' => $showSscl && $vat['sscl_rate'] > 0,
+            'vat' => $vat,
+            'items' => $items,
+            'adjustments' => $adjustments,
+            'lines_total' => $linesTotal,
+            'sscl' => $ssclRow,
+            'rounding' => round($target - $linesTotal, 2),
+            'total' => $vat['inclusive'],
         ];
     }
 
@@ -692,5 +1099,10 @@ class Order extends Model
             })
             ->filter(fn ($n) => $n !== null)
             ->max() ?? 0;
+    }
+
+    public function auditLabel(): string
+    {
+        return $this->invoice_number ? 'Invoice ' . $this->invoice_number : 'Order ' . ($this->order_number ?: '#' . $this->getKey());
     }
 }

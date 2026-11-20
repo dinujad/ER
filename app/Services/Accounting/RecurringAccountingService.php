@@ -156,6 +156,23 @@ class RecurringAccountingService
         });
     }
 
+    /**
+     * Retry a failed occurrence (Phase 7). A failed run used to block its template for ever
+     * (the next run found the failed row and stopped); this clears it and runs the occurrence again.
+     */
+    public static function retryFailedRun(int $runId, ?int $userId = null): RecurringAccountingRun
+    {
+        $run = RecurringAccountingRun::query()->findOrFail($runId);
+        if ($run->status !== 'failed') {
+            throw new RuntimeException('Only failed runs can be retried.');
+        }
+        $template = RecurringAccountingTemplate::query()->findOrFail($run->template_id);
+        $date = $run->occurrence_date->format('Y-m-d');
+        $run->delete();
+
+        return self::executeOccurrence($template, $date, $userId);
+    }
+
     public static function processDue(?string $asOf = null): int
     {
         $asOf = $asOf ?: date('Y-m-d');
@@ -209,6 +226,16 @@ class RecurringAccountingService
 
         if (Schema::hasColumn('orders', 'order_date')) {
             $data['order_date'] = $date;
+        }
+        // Phase 7 — orders.order_number and user_id are required in DERMAS; without them every recurring invoice failed.
+        if (Schema::hasColumn('orders', 'order_number')) {
+            $data['order_number'] = Order::nextOrderNumber();
+        }
+        if (Schema::hasColumn('orders', 'user_id')) {
+            $data['user_id'] = (int) ($template->payload['sales_person_id'] ?? $userId ?? $template->created_by ?? 0) ?: null;
+        }
+        if (Schema::hasColumn('orders', 'subtotal')) {
+            $data['subtotal'] = $amount;
         }
         if (Schema::hasColumn('orders', 'created_by')) {
             $data['created_by'] = $userId;

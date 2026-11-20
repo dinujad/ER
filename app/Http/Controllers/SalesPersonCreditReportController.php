@@ -57,8 +57,7 @@ class SalesPersonCreditReportController extends Controller
             $refunded = round((float) $order->payments
                 ->filter(fn (Payment $payment) => $payment->isRefund())
                 ->sum('amount'), 2);
-            $returned = round((float) $order->saleReturns->sum('total'), 2);
-            $net = max(0, round((float) $order->total_amount - $returned, 2));
+            $net = $order->net_total;
             $credit = max(0, round($net - $paid + $refunded - (float) ($order->claim_credit_amount ?? 0), 2));
 
             return (object) [

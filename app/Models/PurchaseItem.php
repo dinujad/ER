@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class PurchaseItem extends Model
 {
+    use \App\Models\Concerns\Auditable;
+
     use HasFactory;
 
     protected $fillable = [
@@ -36,5 +38,10 @@ class PurchaseItem extends Model
     public function material()
     {
         return $this->belongsTo(Material::class);
+    }
+
+    public function auditLabel(): string
+    {
+        return 'Bill line #' . $this->getKey() . ' (purchase #' . $this->purchase_id . ')';
     }
 }

@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PurchaseReturn extends Model
 {
+    use \App\Models\Concerns\Auditable;
+
     const STATUS_CONFIRMED = 'confirmed';
 
     protected $fillable = [
@@ -60,5 +62,10 @@ class PurchaseReturn extends Model
         $num = $last ? ((int) preg_replace('/\D/', '', $last->return_no)) + 1 : 1;
 
         return 'PR-' . date('Y') . '-' . str_pad((string) $num, 5, '0', STR_PAD_LEFT);
+    }
+
+    public function auditLabel(): string
+    {
+        return 'Purchase return ' . ($this->return_no ?: '#' . $this->getKey());
     }
 }

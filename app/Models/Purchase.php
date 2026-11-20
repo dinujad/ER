@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Purchase extends Model
 {
+    use \App\Models\Concerns\Auditable;
+
     use HasFactory;
 
     const STATUS_DRAFT = 'draft';
@@ -35,7 +37,7 @@ class Purchase extends Model
         'total', 'paid_amount', 'payment_method', 'payment_reference',
         'cheque_date', 'cheque_bank', 'cheque_number',
         'created_by', 'confirmed_at', 'cancelled_at', 'cancel_reason',
-        'accounting_txn_number',
+        'accounting_txn_number', 'input_vat_claimable',
     ];
 
     protected $casts = [
@@ -49,7 +51,140 @@ class Purchase extends Model
         'cheque_date' => 'date',
         'confirmed_at' => 'datetime',
         'cancelled_at' => 'datetime',
+        'input_vat_claimable' => 'boolean',
+        'due_date' => 'date',
+        'approved_at' => 'datetime',
     ];
+
+    /** Bill status labels (Phase 6.5, Xero-style). */
+    public const BILL_STATUS_LABELS = [
+        'draft' => 'Draft',
+        'awaiting_approval' => 'Awaiting approval',
+        'awaiting_payment' => 'Awaiting payment',
+        'partially_paid' => 'Partially paid',
+        'overdue' => 'Overdue',
+        'paid' => 'Paid',
+        'cancelled' => 'Cancelled',
+    ];
+
+    public const BILL_STATUS_BADGES = [
+        'draft' => 'bg-secondary',
+        'awaiting_approval' => 'bg-warning text-dark',
+        'awaiting_payment' => 'bg-primary',
+        'partially_paid' => 'bg-info text-dark',
+        'overdue' => 'bg-danger',
+        'paid' => 'bg-success',
+        'cancelled' => 'bg-light text-muted border',
+    ];
+
+    private static ?bool $hasPayablesColumns = null;
+
+    public static function hasPayablesColumns(): bool
+    {
+        if (self::$hasPayablesColumns === null) {
+            try {
+                self::$hasPayablesColumns = \Illuminate\Support\Facades\Schema::hasColumn('purchases', 'due_date');
+            } catch (\Throwable) {
+                self::$hasPayablesColumns = false;
+            }
+        }
+
+        return self::$hasPayablesColumns;
+    }
+
+    public static function flushSchemaCache(): void
+    {
+        self::$hasPayablesColumns = null;
+    }
+
+    protected static function booted(): void
+    {
+        // Phase 6.5 — due date from supplier terms when the bill is confirmed (or its date changes).
+        static::saving(function (Purchase $purchase) {
+            if (!self::hasPayablesColumns() || $purchase->status !== self::STATUS_CONFIRMED) {
+                return;
+            }
+            if ($purchase->due_date === null || $purchase->isDirty('date')) {
+                $purchase->due_date = $purchase->computeDueDate()?->toDateString();
+            }
+        });
+    }
+
+    public function supplierTermsDays(): int
+    {
+        $terms = $this->supplier?->payment_terms_days;
+
+        return $terms !== null ? (int) $terms : (int) config('dermas.default_supplier_terms_days', 30);
+    }
+
+    public function computeDueDate(): ?\Illuminate\Support\Carbon
+    {
+        return $this->date ? \Illuminate\Support\Carbon::parse($this->date)->startOfDay()->addDays($this->supplierTermsDays()) : null;
+    }
+
+    public function dueDate(): ?\Illuminate\Support\Carbon
+    {
+        return $this->due_date ? \Illuminate\Support\Carbon::parse($this->due_date)->startOfDay() : $this->computeDueDate();
+    }
+
+    public function billStatus(): string
+    {
+        if ($this->status === self::STATUS_CANCELLED) {
+            return 'cancelled';
+        }
+        if ($this->status !== self::STATUS_CONFIRMED) {
+            return 'draft';
+        }
+        $balance = (float) $this->balance;
+        if ($balance <= 0.009) {
+            return 'paid';
+        }
+        if (config('dermas.require_bill_approval') && self::hasPayablesColumns() && $this->approved_at === null) {
+            return 'awaiting_approval';
+        }
+        $due = $this->dueDate();
+        if ($due && $due->lt(now()->startOfDay())) {
+            return 'overdue';
+        }
+
+        return $this->total_paid > 0.009 ? 'partially_paid' : 'awaiting_payment';
+    }
+
+    public function billStatusLabel(): string
+    {
+        return self::BILL_STATUS_LABELS[$this->billStatus()] ?? ucfirst($this->billStatus());
+    }
+
+    public function billStatusBadge(): string
+    {
+        return self::BILL_STATUS_BADGES[$this->billStatus()] ?? 'bg-secondary';
+    }
+
+    public function daysOverdue(): int
+    {
+        $due = $this->dueDate();
+        if (!$due || (float) $this->balance <= 0.009) {
+            return 0;
+        }
+
+        return max(0, (int) $due->diffInDays(now()->startOfDay(), false));
+    }
+
+    /**
+     * Phase 6.3 — VAT on this bill that can be claimed back as input tax (header tax + line tax),
+     * or 0 when the supplier is not VAT registered / the claim box was not ticked.
+     */
+    public function inputVatAmount(): float
+    {
+        if (!$this->input_vat_claimable) {
+            return 0.0;
+        }
+        $lineTax = $this->relationLoaded('items')
+            ? (float) $this->items->sum('tax_amount')
+            : (float) $this->items()->sum('tax_amount');
+
+        return round(max(0, (float) $this->tax_amount + $lineTax), 2);
+    }
 
     public function supplier()
     {
@@ -106,9 +241,29 @@ class Purchase extends Model
         return (float) $this->returns()->sum('total');
     }
 
+    /** Input VAT share of returned goods (claimable bills only) — the supplier credits it back too. */
+    public function returnedInputVat(float $returnGoods): float
+    {
+        $inputVat = $this->inputVatAmount();
+        $net = round((float) $this->total - $inputVat, 2);
+        if ($inputVat <= 0 || $returnGoods <= 0 || $net <= 0) {
+            return 0.0;
+        }
+
+        return round(min($inputVat, $returnGoods * $inputVat / $net), 2);
+    }
+
+    /** Returns valued as the supplier credits them (goods + input VAT share on claimable bills). */
+    public function getTotalReturnedBilledAttribute(): float
+    {
+        $goods = $this->total_returned;
+
+        return round($goods + $this->returnedInputVat($goods), 2);
+    }
+
     public function getNetTotalAttribute(): float
     {
-        return round((float) $this->total - $this->total_returned, 2);
+        return round((float) $this->total - $this->total_returned_billed, 2);
     }
 
     /** Total paid = payment rows, or legacy header paid_amount when no rows exist. */
@@ -205,5 +360,10 @@ class Purchase extends Model
     public static function lockPurchaseNumberGeneration(): void
     {
         static::query()->orderByDesc('id')->lockForUpdate()->value('id');
+    }
+
+    public function auditLabel(): string
+    {
+        return 'Bill ' . ($this->purchase_no ?: '#' . $this->getKey());
     }
 }
