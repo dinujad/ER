@@ -6,6 +6,7 @@ use App\Models\Accounting\RecurringAccountingRun;
 use App\Models\Accounting\RecurringAccountingTemplate;
 use App\Services\Accounting\RecurringAccountingService;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +19,13 @@ class RecurringJournalController extends Controller
     public function index(Request $request)
     {
         $type = $request->get('document_type');
+
+        if (! Schema::hasTable('accounting_recurring_templates')) {
+            $templates = new LengthAwarePaginator([], 0, 25);
+
+            return view('accounting::phase2.recurring.index', compact('templates', 'type'));
+        }
+
         $q = RecurringAccountingTemplate::query()->orderByDesc('id');
         if ($type) {
             $q->where('document_type', $type);
@@ -29,6 +37,12 @@ class RecurringJournalController extends Controller
 
     public function history()
     {
+        if (! Schema::hasTable('accounting_recurring_runs')) {
+            $runs = new LengthAwarePaginator([], 0, 50);
+
+            return view('accounting::phase2.recurring.history', compact('runs'));
+        }
+
         $runs = RecurringAccountingRun::query()->orderByDesc('id')->paginate(50);
 
         return view('accounting::phase2.recurring.history', compact('runs'));
@@ -37,7 +51,9 @@ class RecurringJournalController extends Controller
     public function create(Request $request)
     {
         $docType = $request->get('document_type', 'journal');
-        $accounts = ChartOfAccount::query()->where('active', 1)->orderBy('gl_code')->get();
+        $accounts = Schema::hasTable('chart_of_accounts')
+            ? ChartOfAccount::query()->where('active', 1)->orderBy('gl_code')->get()
+            : collect();
         $customers = Schema::hasTable('customers') ? DB::table('customers')->orderBy('name')->limit(500)->get(['id', 'name']) : collect();
         $suppliers = Schema::hasTable('suppliers') ? DB::table('suppliers')->orderBy('name')->limit(500)->get(['id', 'name']) : collect();
 
@@ -46,6 +62,12 @@ class RecurringJournalController extends Controller
 
     public function store(Request $request)
     {
+        if (! Schema::hasTable('accounting_recurring_templates')) {
+            return (new FlashService())
+                ->onException(new \RuntimeException('Recurring templates table is missing. Run deploy migrate / accounting-schema.'))
+                ->redirectBackWithInput();
+        }
+
         $docType = $request->get('document_type', 'journal');
         $rules = [
             'name' => 'required|string|max:160',
@@ -101,6 +123,10 @@ class RecurringJournalController extends Controller
 
     public function pause($id)
     {
+        if (! Schema::hasTable('accounting_recurring_templates')) {
+            return redirect()->back();
+        }
+
         $t = RecurringAccountingTemplate::findOrFail($id);
         $t->status = 'paused';
         $t->save();
@@ -111,6 +137,10 @@ class RecurringJournalController extends Controller
 
     public function resume($id)
     {
+        if (! Schema::hasTable('accounting_recurring_templates')) {
+            return redirect()->back();
+        }
+
         $t = RecurringAccountingTemplate::findOrFail($id);
         $t->status = 'active';
         $t->save();
@@ -121,6 +151,10 @@ class RecurringJournalController extends Controller
 
     public function runNow($id)
     {
+        if (! Schema::hasTable('accounting_recurring_templates')) {
+            return redirect()->back();
+        }
+
         try {
             $t = RecurringAccountingTemplate::findOrFail($id);
             $occ = ($t->next_run_on ?: now())->format('Y-m-d');

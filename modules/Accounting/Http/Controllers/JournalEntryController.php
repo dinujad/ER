@@ -14,6 +14,7 @@ use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Modules\Accounting\Entities\ChartOfAccount;
 use Modules\Accounting\Entities\JournalEntry;
 use Yajra\DataTables\Facades\DataTables;
@@ -33,7 +34,6 @@ class JournalEntryController extends Controller
      */
     public function index(Request $request)
     {
-        $perPage = $request->per_page ?: 20;
         $orderBy = $request->order_by;
         $orderByDir = $request->order_by_dir;
         $search = $request->s;
@@ -42,55 +42,86 @@ class JournalEntryController extends Controller
         $location_id = $request->location_id;
         $chart_of_account_id = $request->chart_of_account_id;
         $businessId = session('business.id');
-        $data = JournalEntry::leftJoin("business_locations", "business_locations.id", "journal_entries.location_id")
-            ->join("chart_of_accounts", "chart_of_accounts.id", "journal_entries.chart_of_account_id")
+        $hasLocation = Schema::hasColumn('journal_entries', 'location_id');
+        $hasCreatedBy = Schema::hasColumn('journal_entries', 'created_by_id');
+        $hasBusinessLocations = Schema::hasTable('business_locations');
+        $hasUsers = Schema::hasTable('users');
+        $hasSubtypes = Schema::hasTable('account_subtypes');
+        $hasDetailTypes = Schema::hasTable('account_detail_types');
+
+        $query = JournalEntry::query()
+            ->join('chart_of_accounts', 'chart_of_accounts.id', '=', 'journal_entries.chart_of_account_id')
             ->where(function ($q) use ($businessId) {
                 $q->where('chart_of_accounts.business_id', $businessId)
-                    ->orWhere('chart_of_accounts.business_id', 0);
+                    ->orWhere('chart_of_accounts.business_id', 0)
+                    ->orWhereNull('chart_of_accounts.business_id');
             })
-            ->leftJoin("account_subtypes", "account_subtypes.id", "chart_of_accounts.account_subtype_id")
-            ->leftJoin("account_detail_types", "account_detail_types.id", "chart_of_accounts.detail_type_id")
-            ->leftJoin("users", "users.id", "journal_entries.created_by_id")
             ->where(function ($q) {
                 $q->where('journal_entries.reversed', 0)->orWhereNull('journal_entries.reversed');
-            })
-            ->when($orderBy, function (Builder $query) use ($orderBy, $orderByDir) {
-                $query->orderBy($orderBy, $orderByDir);
-            })
-            ->when($end_date, function ($query) use ($start_date, $end_date) {
-                $query->whereBetween("journal_entries.date", [$start_date, $end_date]);
-            })
-            ->when($location_id, function ($query) use ($location_id) {
-                $query->where("journal_entries.location_id", $location_id);
-            })
-            ->when($chart_of_account_id, function ($query) use ($chart_of_account_id) {
-                $query->where("journal_entries.chart_of_account_id", $chart_of_account_id);
-            })
-            ->when($search, function (Builder $query) use ($search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('journal_entries.transaction_number', 'like', "%$search%")
-                      ->orWhere('journal_entries.id', 'like', "%$search%")
-                      ->orWhere('business_locations.name', 'like', "%$search%")
-                      ->orWhere('users.name', 'like', "%$search%");
-                });
-            })
-            ->selectRaw("journal_entries.id,
-                journal_entries.created_by_id,
-                journal_entries.location_id,
-                journal_entries.date,
-                journal_entries.debit,
-                journal_entries.credit,
-                journal_entries.transaction_number,
-                COALESCE(business_locations.name,'—') business_location,
-                chart_of_accounts.account_type,
-                chart_of_accounts.name account_name,
-                COALESCE(users.name, '—') created_by,
-                account_subtypes.name account_subtype,
-                account_detail_types.name account_detail_type
-                ")
-            ->get();
+            });
 
-        $chart_of_accounts = ChartOfAccount::all(['id', 'name']);
+        if ($hasLocation && $hasBusinessLocations) {
+            $query->leftJoin('business_locations', 'business_locations.id', '=', 'journal_entries.location_id');
+        }
+        if ($hasCreatedBy && $hasUsers) {
+            $query->leftJoin('users', 'users.id', '=', 'journal_entries.created_by_id');
+        }
+        if ($hasSubtypes) {
+            $query->leftJoin('account_subtypes', 'account_subtypes.id', '=', 'chart_of_accounts.account_subtype_id');
+        }
+        if ($hasDetailTypes) {
+            $query->leftJoin('account_detail_types', 'account_detail_types.id', '=', 'chart_of_accounts.detail_type_id');
+        }
+
+        $query
+            ->when($orderBy, function (Builder $q) use ($orderBy, $orderByDir) {
+                $q->orderBy($orderBy, $orderByDir);
+            })
+            ->when($end_date, function ($q) use ($start_date, $end_date) {
+                $q->whereBetween('journal_entries.date', [$start_date, $end_date]);
+            })
+            ->when($hasLocation && $location_id, function ($q) use ($location_id) {
+                $q->where('journal_entries.location_id', $location_id);
+            })
+            ->when($chart_of_account_id, function ($q) use ($chart_of_account_id) {
+                $q->where('journal_entries.chart_of_account_id', $chart_of_account_id);
+            })
+            ->when($search, function (Builder $q) use ($search, $hasLocation, $hasBusinessLocations, $hasCreatedBy, $hasUsers) {
+                $q->where(function ($inner) use ($search, $hasLocation, $hasBusinessLocations, $hasCreatedBy, $hasUsers) {
+                    $inner->where('journal_entries.transaction_number', 'like', "%$search%")
+                        ->orWhere('journal_entries.id', 'like', "%$search%");
+                    if ($hasLocation && $hasBusinessLocations) {
+                        $inner->orWhere('business_locations.name', 'like', "%$search%");
+                    }
+                    if ($hasCreatedBy && $hasUsers) {
+                        $inner->orWhere('users.name', 'like', "%$search%");
+                    }
+                });
+            });
+
+        $select = [
+            'journal_entries.id',
+            'journal_entries.date',
+            'journal_entries.debit',
+            'journal_entries.credit',
+            'journal_entries.transaction_number',
+            'chart_of_accounts.account_type',
+            'chart_of_accounts.name as account_name',
+        ];
+        if ($hasCreatedBy) {
+            $select[] = 'journal_entries.created_by_id';
+        }
+        if ($hasLocation) {
+            $select[] = 'journal_entries.location_id';
+        }
+        $query->select($select)
+            ->selectRaw($hasLocation && $hasBusinessLocations ? "COALESCE(business_locations.name,'—') as business_location" : "'—' as business_location")
+            ->selectRaw($hasCreatedBy && $hasUsers ? "COALESCE(users.name,'—') as created_by" : "'—' as created_by")
+            ->selectRaw($hasSubtypes ? 'account_subtypes.name as account_subtype' : 'NULL as account_subtype')
+            ->selectRaw($hasDetailTypes ? 'account_detail_types.name as account_detail_type' : 'NULL as account_detail_type');
+
+        $data = $query->orderByDesc('journal_entries.date')->orderByDesc('journal_entries.id')->limit(500)->get();
+        $chart_of_accounts = ChartOfAccount::query()->orderBy('gl_code')->get(['id', 'name']);
 
         return view('accounting::journal_entry.index', compact('data', 'chart_of_accounts'));
     }
@@ -101,28 +132,43 @@ class JournalEntryController extends Controller
         $end_date = $request->end_date;
         $location_id = $request->location_id;
         $chart_of_account_id = $request->chart_of_account_id;
+        $hasLocation = Schema::hasColumn('journal_entries', 'location_id');
+        $hasCreatedBy = Schema::hasColumn('journal_entries', 'created_by_id');
+        $hasBusinessLocations = Schema::hasTable('business_locations');
+        $hasUsers = Schema::hasTable('users');
 
-        $query = DB::table("journal_entries")
-            ->leftJoin("business_locations", "business_locations.id", "journal_entries.location_id")
-            ->join("chart_of_accounts", "chart_of_accounts.id", "journal_entries.chart_of_account_id")
-            ->leftJoin("users", "users.id", "journal_entries.created_by_id")
-            ->when($end_date, function ($query) use ($start_date, $end_date) {
-                $query->whereBetween("journal_entries.date", [$start_date, $end_date]);
+        $query = DB::table('journal_entries')
+            ->join('chart_of_accounts', 'chart_of_accounts.id', '=', 'journal_entries.chart_of_account_id')
+            ->when($hasLocation && $hasBusinessLocations, function ($q) {
+                $q->leftJoin('business_locations', 'business_locations.id', '=', 'journal_entries.location_id');
             })
-            ->when($location_id, function ($query) use ($location_id) {
-                $query->where("journal_entries.location_id", $location_id);
+            ->when($hasCreatedBy && $hasUsers, function ($q) {
+                $q->leftJoin('users', 'users.id', '=', 'journal_entries.created_by_id');
             })
-            ->when($chart_of_account_id, function ($query) use ($chart_of_account_id) {
-                $query->where("journal_entries.chart_of_account_id", $chart_of_account_id);
+            ->when($end_date, function ($q) use ($start_date, $end_date) {
+                $q->whereBetween('journal_entries.date', [$start_date, $end_date]);
+            })
+            ->when($hasLocation && $location_id, function ($q) use ($location_id) {
+                $q->where('journal_entries.location_id', $location_id);
+            })
+            ->when($chart_of_account_id, function ($q) use ($chart_of_account_id) {
+                $q->where('journal_entries.chart_of_account_id', $chart_of_account_id);
             })
             ->where(function ($q) {
                 $bid = session('business.id');
-                $q->where('chart_of_accounts.business_id', $bid)->orWhere('chart_of_accounts.business_id', 0);
+                $q->where('chart_of_accounts.business_id', $bid)
+                    ->orWhere('chart_of_accounts.business_id', 0)
+                    ->orWhereNull('chart_of_accounts.business_id');
             })
             ->where(function ($q) {
                 $q->where('journal_entries.reversed', 0)->orWhereNull('journal_entries.reversed');
             })
-            ->selectRaw("journal_entries.id,journal_entries.date,journal_entries.debit,journal_entries.credit,journal_entries.transaction_number,COALESCE(business_locations.name,'—') business_location,chart_of_accounts.account_type,chart_of_accounts.name account_name,COALESCE(users.name,'—') created_by");
+            ->selectRaw(
+                "journal_entries.id,journal_entries.date,journal_entries.debit,journal_entries.credit,journal_entries.transaction_number,".
+                ($hasLocation && $hasBusinessLocations ? "COALESCE(business_locations.name,'—')" : "'—'")." as business_location,".
+                "chart_of_accounts.account_type,chart_of_accounts.name account_name,".
+                ($hasCreatedBy && $hasUsers ? "COALESCE(users.name,'—')" : "'—'").' as created_by'
+            );
         return DataTables::of($query)->editColumn('debit', function ($data) {
             if (!empty($data->debit)) {
                 return number_format($data->debit, 2);

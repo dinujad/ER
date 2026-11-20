@@ -1,10 +1,6 @@
 @extends('accounting::layouts.app')
 @section('title', 'Accounting Dashboard')
 
-@section('css')
-    @include('accounting::dashboard.styles')
-@endsection
-
 @section('content')
 @php
     $fmt = function ($value) {
@@ -23,8 +19,9 @@
     $userFirst = explode(' ', trim(auth()->user()->name ?? 'there'))[0] ?? 'there';
 @endphp
 
-<div class="acct-dash-header">
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
     <div class="heading">
+        <div class="acct-dash-eyebrow">Financial intelligence</div>
         <h1 class="acct-dash-heading">{{ $greeting }}, {{ $userFirst }}</h1>
         <p class="acct-dash-sub">Posted journal balances · {{ $start_date }} → {{ $end_date }} · LKR</p>
     </div>
@@ -37,9 +34,9 @@
             <label class="visually-hidden" for="dashTo">To</label>
             <input type="date" id="dashTo" name="end_date" class="form-control form-control-sm" value="{{ $end_date }}" title="To">
         </div>
-        <a href="{{ url('accounting/phase4/statements/profit-and-loss?from='.$start_date.'&to='.$end_date) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-graph-up me-1" aria-hidden="true"></i> Profit &amp; Loss</a>
+        <a href="{{ url('accounting/phase4/statements/profit-and-loss?from='.$start_date.'&to='.$end_date) }}" class="btn btn-sm btn-outline-secondary">↓ Export P&amp;L</a>
         <a href="{{ url('report/accounting/profit_and_loss') }}" class="btn btn-sm btn-outline-secondary">Classic P&amp;L</a>
-        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1" aria-hidden="true"></i> Apply dates</button>
+        <button type="submit" class="btn btn-sm btn-primary">↻ Refresh</button>
     </form>
 </div>
 
@@ -95,57 +92,57 @@
 <div class="acct-kpi-grid" aria-label="Additional balances">
     <div class="acct-kpi">
         <div class="acct-kpi-label">Cash</div>
-        <div class="acct-kpi-value">{{ $fmt($summary['cash'] ?? null) }}</div>
+        <div class="acct-kpi-value" style="font-size:1.1rem;margin-top:8px">{{ $fmt($summary['cash'] ?? null) }}</div>
         <div class="acct-kpi-meta">Cash GL</div>
     </div>
     <div class="acct-kpi">
         <div class="acct-kpi-label">Bank</div>
-        <div class="acct-kpi-value">{{ $fmt($summary['bank'] ?? null) }}</div>
+        <div class="acct-kpi-value" style="font-size:1.1rem;margin-top:8px">{{ $fmt($summary['bank'] ?? null) }}</div>
         <div class="acct-kpi-meta">Bank GL</div>
     </div>
     <a href="{{ url('report/accounting/accounts_receivable_ageing_summary') }}" class="acct-kpi text-decoration-none">
         <div class="acct-kpi-label">Receivables</div>
-        <div class="acct-kpi-value">{{ $fmt($summary['receivables'] ?? null) }}</div>
+        <div class="acct-kpi-value" style="font-size:1.1rem;margin-top:8px">{{ $fmt($summary['receivables'] ?? null) }}</div>
         <div class="acct-kpi-meta">AR control</div>
     </a>
     <a href="{{ url('report/accounting/accounts_payable_ageing_summary') }}" class="acct-kpi text-decoration-none">
         <div class="acct-kpi-label">Payables</div>
-        <div class="acct-kpi-value">{{ $fmt($summary['payables'] ?? null) }}</div>
+        <div class="acct-kpi-value" style="font-size:1.1rem;margin-top:8px">{{ $fmt($summary['payables'] ?? null) }}</div>
         <div class="acct-kpi-meta">AP control</div>
     </a>
     <div class="acct-kpi">
         <div class="acct-kpi-label">Catalogue</div>
-        <div class="acct-kpi-value">{{ number_format($counts['accounts'] ?? 0) }} accts</div>
+        <div class="acct-kpi-value" style="font-size:1.1rem;margin-top:8px">{{ number_format($counts['accounts'] ?? 0) }} accts</div>
         <div class="acct-kpi-meta">{{ number_format($counts['journal_lines'] ?? 0) }} journal lines</div>
     </div>
     <div class="acct-kpi positive">
         <div class="acct-kpi-label">Gross Profit</div>
-        <div class="acct-kpi-value">{{ $fmt($summary['gross_profit'] ?? null) }}</div>
+        <div class="acct-kpi-value" style="font-size:1.1rem;margin-top:8px">{{ $fmt($summary['gross_profit'] ?? null) }}</div>
         <div class="acct-kpi-meta">@isset($summary['gross_margin_pct']){{ $summary['gross_margin_pct'] }}% margin @else Revenue − COGS @endisset</div>
     </div>
     <div class="acct-kpi">
         <div class="acct-kpi-label">Working Capital</div>
-        <div class="acct-kpi-value">{{ $fmt($summary['working_capital'] ?? null) }}</div>
+        <div class="acct-kpi-value" style="font-size:1.1rem;margin-top:8px">{{ $fmt($summary['working_capital'] ?? null) }}</div>
         <div class="acct-kpi-meta">Current assets − liabilities</div>
     </div>
     <div class="acct-kpi">
         <div class="acct-kpi-label">Current Ratio</div>
-        <div class="acct-kpi-value">{{ $summary['current_ratio'] ?? 'N/A' }}</div>
+        <div class="acct-kpi-value" style="font-size:1.1rem;margin-top:8px">{{ $summary['current_ratio'] ?? 'N/A' }}</div>
         <div class="acct-kpi-meta">Liquidity</div>
     </div>
     <div class="acct-kpi">
         <div class="acct-kpi-label">Loans Outstanding</div>
-        <div class="acct-kpi-value">{{ $fmt($summary['loan_outstanding'] ?? null) }}</div>
+        <div class="acct-kpi-value" style="font-size:1.1rem;margin-top:8px">{{ $fmt($summary['loan_outstanding'] ?? null) }}</div>
         <div class="acct-kpi-meta">Principal</div>
     </div>
     <div class="acct-kpi">
         <div class="acct-kpi-label">Inventory</div>
-        <div class="acct-kpi-value">{{ $fmt($summary['inventory'] ?? null) }}</div>
+        <div class="acct-kpi-value" style="font-size:1.1rem;margin-top:8px">{{ $fmt($summary['inventory'] ?? null) }}</div>
         <div class="acct-kpi-meta">Stock valuation</div>
     </div>
     <div class="acct-kpi">
         <div class="acct-kpi-label">Fixed Assets NBV</div>
-        <div class="acct-kpi-value">{{ $fmt($summary['fixed_asset_nbv'] ?? null) }}</div>
+        <div class="acct-kpi-value" style="font-size:1.1rem;margin-top:8px">{{ $fmt($summary['fixed_asset_nbv'] ?? null) }}</div>
         <div class="acct-kpi-meta">Net book value</div>
     </div>
 </div>

@@ -9,6 +9,7 @@ use App\Services\Accounting\Ai\AnomalyDetectionService;
 use App\Services\Accounting\Ai\FakeAiProvider;
 use App\Services\Accounting\Ai\FinancialInsightsService;
 use App\Services\Accounting\Ai\FinancialToolRegistry;
+use App\Services\Accounting\Ai\GeminiAiProvider;
 use App\Services\Accounting\Ai\SmartCategorizationService;
 use App\Services\Accounting\Ai\WorkflowAutomationService;
 use App\Services\Accounting\Ocr\OcrExtractionService;
@@ -16,6 +17,7 @@ use App\Services\AccountingService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -315,5 +317,51 @@ class AccountingPhase5CoreTest extends TestCase
         $row = (array) DB::table('acct_ai_provider_settings')->where('business_id', 1)->first();
         $this->assertArrayNotHasKey('api_key', $row);
         $this->assertStringNotContainsString('SECRET_SHOULD_NOT_PERSIST', json_encode($row));
+    }
+
+    public function test_gemini_provider_parses_generate_content_response(): void
+    {
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [[
+                    'content' => ['parts' => [['text' => 'Net profit was LKR 7500.00 from trusted tools.']]],
+                ]],
+                'usageMetadata' => ['promptTokenCount' => 12, 'candidatesTokenCount' => 8],
+            ], 200),
+        ]);
+
+        config(['accounting_ai.providers.gemini.api_key' => 'test-gemini-key']);
+        $provider = (new AiProviderManager)->make('gemini', [
+            'model' => 'gemini-2.0-flash',
+            'timeout_seconds' => 10,
+            'max_tokens' => 512,
+        ]);
+
+        $this->assertInstanceOf(GeminiAiProvider::class, $provider);
+        $this->assertTrue($provider->isAvailable());
+
+        $result = $provider->chat([
+            ['role' => 'user', 'content' => 'What was our profit?'],
+        ], [
+            'tool_results' => ['getProfitAndLoss' => ['primary_amount' => 7500.0, 'currency' => 'LKR']],
+        ]);
+
+        $this->assertSame('gemini', $result['provider']);
+        $this->assertStringContainsString('7500.00', $result['content']);
+        $this->assertSame(12, $result['prompt_tokens']);
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), 'gemini-2.0-flash:generateContent')
+                && $request->hasHeader('x-goog-api-key', 'test-gemini-key')
+                && ! str_contains(json_encode($request->data()), 'test-gemini-key');
+        });
+    }
+
+    public function test_gemini_provider_unavailable_without_key(): void
+    {
+        config(['accounting_ai.providers.gemini.api_key' => null]);
+        $provider = (new AiProviderManager)->make('gemini', []);
+        $this->assertFalse($provider->isAvailable());
+        $this->expectException(\App\Services\Accounting\Ai\AiProviderException::class);
+        $provider->chat([['role' => 'user', 'content' => 'hi']]);
     }
 }

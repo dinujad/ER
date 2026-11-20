@@ -57,6 +57,10 @@ class AccountingService
     /** Return the chart_of_accounts.id for a GL code (or null if not found). */
     public static function accountId(string $glCode): ?int
     {
+        if (! Schema::hasTable('chart_of_accounts')) {
+            return null;
+        }
+
         $query = DB::table('chart_of_accounts')->where('gl_code', $glCode)->where('active', 1);
 
         if (Schema::hasColumn('chart_of_accounts', 'business_id')) {

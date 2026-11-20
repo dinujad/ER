@@ -5,8 +5,10 @@ namespace Modules\Accounting\Http\Controllers;
 use App\Models\Accounting\ManualJournal;
 use App\Services\Accounting\ManualJournalService;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Modules\Accounting\Entities\ChartOfAccount;
 use Modules\Accounting\Services\FlashService;
 
@@ -15,6 +17,13 @@ class ManualJournalController extends Controller
     public function index(Request $request)
     {
         $status = $request->get('status');
+
+        if (! Schema::hasTable('accounting_manual_journals')) {
+            $journals = new LengthAwarePaginator([], 0, 25);
+
+            return view('accounting::phase2.manual_journals.index', compact('journals', 'status'));
+        }
+
         $q = ManualJournal::query()->with('lines')->orderByDesc('id');
         if ($status) {
             $q->where('status', $status);
@@ -34,13 +43,21 @@ class ManualJournalController extends Controller
 
     public function create()
     {
-        $accounts = ChartOfAccount::query()->where('active', 1)->orderBy('gl_code')->get();
+        $accounts = Schema::hasTable('chart_of_accounts')
+            ? ChartOfAccount::query()->where('active', 1)->orderBy('gl_code')->get()
+            : collect();
 
         return view('accounting::phase2.manual_journals.create', compact('accounts'));
     }
 
     public function store(Request $request)
     {
+        if (! Schema::hasTable('accounting_manual_journals')) {
+            return (new FlashService())
+                ->onException(new \RuntimeException('Manual journals table is missing. Run deploy accounting-schema.'))
+                ->redirectBackWithInput();
+        }
+
         $request->validate([
             'journal_date' => 'required|date',
             'description' => 'nullable|string|max:500',
@@ -191,6 +208,16 @@ class ManualJournalController extends Controller
 
     public function approvalQueue()
     {
+        if (! Schema::hasTable('accounting_manual_journals')) {
+            $journals = new LengthAwarePaginator([], 0, 25);
+
+            return view('accounting::phase2.manual_journals.index', [
+                'journals' => $journals,
+                'status' => 'submitted',
+                'title' => 'Approval Queue',
+            ]);
+        }
+
         $journals = ManualJournal::query()->with('lines')->where('status', 'submitted')->orderBy('submitted_at')->paginate(25);
 
         return view('accounting::phase2.manual_journals.index', [

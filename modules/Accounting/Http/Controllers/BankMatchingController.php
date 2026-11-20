@@ -9,6 +9,7 @@ use App\Services\Accounting\BankMatchingService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Modules\Accounting\Entities\ChartOfAccount;
 use Modules\Accounting\Services\FlashService;
 
@@ -16,7 +17,9 @@ class BankMatchingController extends Controller
 {
     public function index(Request $request)
     {
-        $accounts = ChartOfAccount::query()->where('active', 1)->orderBy('gl_code')->get();
+        $accounts = Schema::hasTable('chart_of_accounts')
+            ? ChartOfAccount::query()->where('active', 1)->orderBy('gl_code')->get()
+            : collect();
         $accountId = (int) $request->get('chart_of_account_id');
         $tab = $request->get('tab', 'unmatched');
         $from = $request->get('from') ?: date('Y-m-01');

@@ -10,6 +10,7 @@ use PDF;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Modules\Accounting\Services\AccountingReportService;
 use Modules\Accounting\Entities\AccountSubtype;
 use Modules\Accounting\Entities\ChartOfAccount;
@@ -278,29 +279,49 @@ class ReportController extends Controller
         $currency_code = currency_code();
         $account_types = ChartOfAccount::getAccountTypes();
 
-        $data = DB::table("chart_of_accounts")
-            ->leftJoin('journal_entries', function ($join) use ($end_date) {
+        $hasLocation = Schema::hasColumn('journal_entries', 'location_id');
+        $hasBusinessLocations = Schema::hasTable('business_locations');
+        $hasSubtypes = Schema::hasTable('account_subtypes');
+        $hasActive = Schema::hasColumn('journal_entries', 'active');
+
+        $data = DB::table('chart_of_accounts')
+            ->leftJoin('journal_entries', function ($join) use ($end_date, $hasActive, $hasLocation, $location_id) {
                 $join->on('journal_entries.chart_of_account_id', '=', 'chart_of_accounts.id')
-                    ->where('journal_entries.active', 1)
-                    ->where('journal_entries.reversed', 0)
-                    ->when($end_date, function ($query) use ($end_date) {
-                        $query->where('journal_entries.date', '<=', $end_date);
+                    ->where(function ($q) {
+                        $q->where('journal_entries.reversed', 0)->orWhereNull('journal_entries.reversed');
                     });
-            })
-            ->leftJoin('business_locations', function ($join) use ($location_id) {
-                $join->on('journal_entries.location_id', '=', 'business_locations.id')
-                    ->when($location_id, function ($query) use ($location_id) {
-                        $query->where('journal_entries.location_id', $location_id);
+                if ($hasActive) {
+                    $join->where(function ($q) {
+                        $q->where('journal_entries.active', 1)->orWhereNull('journal_entries.active');
                     });
-            })
-            ->leftJoin('account_subtypes', 'account_subtypes.id', '=', 'chart_of_accounts.account_subtype_id')
-            ->where('chart_of_accounts.active', 1)
+                }
+                if ($end_date) {
+                    $join->where('journal_entries.date', '<=', $end_date);
+                }
+                if ($hasLocation && $location_id) {
+                    $join->where('journal_entries.location_id', $location_id);
+                }
+            });
+        if ($hasLocation && $hasBusinessLocations) {
+            $data->leftJoin('business_locations', 'journal_entries.location_id', '=', 'business_locations.id');
+        }
+        if ($hasSubtypes) {
+            $data->leftJoin('account_subtypes', 'account_subtypes.id', '=', 'chart_of_accounts.account_subtype_id');
+        }
+        $data = $data->where('chart_of_accounts.active', 1)
             ->where(function ($q) {
                 $bid = session('business.id');
-                $q->where('chart_of_accounts.business_id', $bid)->orWhere('chart_of_accounts.business_id', 0);
+                $q->where('chart_of_accounts.business_id', $bid)
+                    ->orWhere('chart_of_accounts.business_id', 0)
+                    ->orWhereNull('chart_of_accounts.business_id');
             })
-            ->selectRaw("chart_of_accounts.name,chart_of_accounts.gl_code,chart_of_accounts.account_type,COALESCE(business_locations.name,'—') business_location,SUM(journal_entries.debit) debit,SUM(journal_entries.credit) credit, account_subtypes.name account_subtype, account_subtypes.id account_subtype_id")
-            ->groupBy("chart_of_accounts.id")
+            ->selectRaw(
+                "chart_of_accounts.name,chart_of_accounts.gl_code,chart_of_accounts.account_type,".
+                ($hasLocation && $hasBusinessLocations ? "COALESCE(business_locations.name,'—')" : "'—'")." as business_location,".
+                "SUM(journal_entries.debit) debit,SUM(journal_entries.credit) credit,".
+                ($hasSubtypes ? 'account_subtypes.name as account_subtype, account_subtypes.id as account_subtype_id' : 'NULL as account_subtype, NULL as account_subtype_id')
+            )
+            ->groupBy('chart_of_accounts.id')
             ->orderBy('account_type')
             ->get();
 
@@ -331,6 +352,11 @@ class ReportController extends Controller
         $start_date = $request->start_date ?: $this->default_start_date;
         $end_date = $request->end_date ?: $this->default_end_date;
         $location_id = $request->location_id;
+
+        if (! Schema::hasTable('transactions')) {
+            return $this->erpReceivableAgeing($start_date, $end_date);
+        }
+
         $data = Transaction::where('transactions.type', 'sell')
             ->where('payment_status', '!=', 'paid')
             ->join('journal_entries', 'journal_entries.id', '=', 'transactions.journal_entry_id')
@@ -355,22 +381,21 @@ class ReportController extends Controller
 
         $chart_of_accounts = $data->pluck('chart_of_account_id', 'chart_of_account')->unique();
         $business_locations = BusinessLocation::getDropdownCollection(session('business.id'));
-        $account_subtype_ids = $data->pluck('account_subtype_id')->unique();
         $days_past = get_days_past();
         $compact_data = compact('start_date', 'end_date', 'location_id', 'data', 'business_locations', 'chart_of_accounts', 'days_past');
 
-        //check if we should download
         if ($request->download) {
             $view = view('accounting::report.accounts_receivable_ageing_summary_pdf', $compact_data);
             if ($request->type == 'pdf') {
                 $pdf = PDF::loadView(theme_view_file('accounting::report.accounts_receivable_ageing_summary_pdf'), $compact_data);
-                return $pdf->download(trans_choice('accounting::report.accounts_receivable_ageing_summary', 1) . '.pdf');
+
+                return $pdf->download(trans_choice('accounting::report.accounts_receivable_ageing_summary', 1).'.pdf');
             } elseif ($request->type == 'excel_2007') {
-                return Excel::download(new AccountingExport($view), trans_choice('accounting::report.accounts_receivable_ageing_summary', 1) . '.xlsx');
+                return Excel::download(new AccountingExport($view), trans_choice('accounting::report.accounts_receivable_ageing_summary', 1).'.xlsx');
             } elseif ($request->type == 'excel') {
-                return Excel::download(new AccountingExport($view), trans_choice('accounting::report.accounts_receivable_ageing_summary', 1) . '.xls');
+                return Excel::download(new AccountingExport($view), trans_choice('accounting::report.accounts_receivable_ageing_summary', 1).'.xls');
             } elseif ($request->type == 'csv') {
-                return Excel::download(new AccountingExport($view), trans_choice('accounting::report.accounts_receivable_ageing_summary', 1) . '.csv');
+                return Excel::download(new AccountingExport($view), trans_choice('accounting::report.accounts_receivable_ageing_summary', 1).'.csv');
             }
         }
 
@@ -382,6 +407,11 @@ class ReportController extends Controller
         $start_date = $request->start_date ?: $this->default_start_date;
         $end_date = $request->end_date ?: $this->default_end_date;
         $location_id = $request->location_id;
+
+        if (! Schema::hasTable('transactions')) {
+            return $this->erpReceivableAgeing($start_date, $end_date);
+        }
+
         $data = Transaction::where('type', 'sell')
             ->where('payment_status', '!=', 'paid')
             ->join('journal_entries', 'journal_entries.id', '=', 'transactions.journal_entry_id')
@@ -439,6 +469,11 @@ class ReportController extends Controller
         $start_date = $request->start_date ?: $this->default_start_date;
         $end_date = $request->end_date ?: $this->default_end_date;
         $location_id = $request->location_id;
+
+        if (! Schema::hasTable('transactions')) {
+            return $this->erpPayableAgeing($start_date, $end_date);
+        }
+
         $data = Transaction::where('transactions.type', 'purchase')
             ->where('payment_status', '!=', 'paid')
             ->join('journal_entries', 'journal_entries.id', '=', 'transactions.journal_entry_id')
@@ -490,6 +525,11 @@ class ReportController extends Controller
         $start_date = $request->start_date ?: $this->default_start_date;
         $end_date = $request->end_date ?: $this->default_end_date;
         $location_id = $request->location_id;
+
+        if (! Schema::hasTable('transactions')) {
+            return $this->erpPayableAgeing($start_date, $end_date);
+        }
+
         $data = Transaction::where('type', 'purchase')
             ->where('payment_status', '!=', 'paid')
             ->join('journal_entries', 'journal_entries.id', '=', 'transactions.journal_entry_id')
@@ -604,48 +644,185 @@ class ReportController extends Controller
         $chart_of_account_id = $request->chart_of_account_id;
         $account_types = ChartOfAccount::getAccountTypes();
 
-        $data = JournalEntry::leftJoin("business_locations", "business_locations.id", "journal_entries.location_id")
-            ->join("chart_of_accounts", "chart_of_accounts.id", "journal_entries.chart_of_account_id")
+        $hasLocation = Schema::hasColumn('journal_entries', 'location_id');
+        $hasCreatedBy = Schema::hasColumn('journal_entries', 'created_by_id');
+        $hasBusinessLocations = Schema::hasTable('business_locations');
+        $hasUsers = Schema::hasTable('users');
+        $hasSubtypes = Schema::hasTable('account_subtypes');
+        $hasDetailTypes = Schema::hasTable('account_detail_types');
+
+        $query = JournalEntry::query()
+            ->join('chart_of_accounts', 'chart_of_accounts.id', '=', 'journal_entries.chart_of_account_id')
             ->where(function ($q) {
                 $bid = session('business.id');
-                $q->where('chart_of_accounts.business_id', $bid)->orWhere('chart_of_accounts.business_id', 0);
-            })
-            ->leftJoin("users", "users.id", "journal_entries.created_by_id")
-            ->leftJoin("account_subtypes", "account_subtypes.id", "chart_of_accounts.account_subtype_id")
-            ->leftJoin("account_detail_types", "account_detail_types.id", "chart_of_accounts.detail_type_id")
-            ->when($end_date, function ($query) use ($start_date, $end_date) {
-                $query->whereBetween("journal_entries.date", [$start_date, $end_date]);
-            })
-            ->when($location_id, function ($query) use ($location_id) {
-                $query->where("journal_entries.location_id", $location_id);
-            })
-            ->when($chart_of_account_id, function ($query) use ($chart_of_account_id) {
-                $query->where("journal_entries.chart_of_account_id", $chart_of_account_id);
+                $q->where('chart_of_accounts.business_id', $bid)
+                    ->orWhere('chart_of_accounts.business_id', 0)
+                    ->orWhereNull('chart_of_accounts.business_id');
             })
             ->where(function ($q) {
                 $q->where('journal_entries.reversed', 0)->orWhereNull('journal_entries.reversed');
             })
-            ->selectRaw("journal_entries.id,journal_entries.created_by_id,journal_entries.location_id,journal_entries.date,journal_entries.debit,journal_entries.credit,journal_entries.transaction_number,COALESCE(business_locations.name,'—') business_location,chart_of_accounts.account_type,chart_of_accounts.name account_name,COALESCE(users.name,'—') created_by, account_subtypes.name account_subtype, account_detail_types.name account_detail_type")
+            ->when($end_date, function ($q) use ($start_date, $end_date) {
+                $q->whereBetween('journal_entries.date', [$start_date, $end_date]);
+            })
+            ->when($hasLocation && $location_id, function ($q) use ($location_id) {
+                $q->where('journal_entries.location_id', $location_id);
+            })
+            ->when($chart_of_account_id, function ($q) use ($chart_of_account_id) {
+                $q->where('journal_entries.chart_of_account_id', $chart_of_account_id);
+            });
+
+        if ($hasLocation && $hasBusinessLocations) {
+            $query->leftJoin('business_locations', 'business_locations.id', '=', 'journal_entries.location_id');
+        }
+        if ($hasCreatedBy && $hasUsers) {
+            $query->leftJoin('users', 'users.id', '=', 'journal_entries.created_by_id');
+        }
+        if ($hasSubtypes) {
+            $query->leftJoin('account_subtypes', 'account_subtypes.id', '=', 'chart_of_accounts.account_subtype_id');
+        }
+        if ($hasDetailTypes) {
+            $query->leftJoin('account_detail_types', 'account_detail_types.id', '=', 'chart_of_accounts.detail_type_id');
+        }
+
+        $data = $query->select([
+            'journal_entries.id',
+            'journal_entries.date',
+            'journal_entries.debit',
+            'journal_entries.credit',
+            'journal_entries.transaction_number',
+            'chart_of_accounts.account_type',
+            'chart_of_accounts.name as account_name',
+        ])
+            ->selectRaw($hasLocation && $hasBusinessLocations ? "COALESCE(business_locations.name,'—') as business_location" : "'—' as business_location")
+            ->selectRaw($hasCreatedBy && $hasUsers ? "COALESCE(users.name,'—') as created_by" : "'—' as created_by")
+            ->selectRaw($hasSubtypes ? 'account_subtypes.name as account_subtype' : 'NULL as account_subtype')
+            ->selectRaw($hasDetailTypes ? 'account_detail_types.name as account_detail_type' : 'NULL as account_detail_type')
             ->get();
 
         $compact_data = compact('start_date', 'end_date', 'location_id', 'data', 'business_locations', 'currency_code', 'account_types');
 
-        //check if we should download
         if ($request->download) {
             $view = view('accounting::report.journal_pdf', $compact_data);
 
             if ($request->type == 'pdf') {
                 $pdf = PDF::loadView(theme_view_file('accounting::report.journal_pdf'), $compact_data);
-                return $pdf->download(trans_choice('accounting::report.journal', 1) . '.pdf');
+
+                return $pdf->download(trans_choice('accounting::report.journal', 1).'.pdf');
             } elseif ($request->type == 'excel_2007') {
-                return Excel::download(new AccountingExport($view), trans_choice('accounting::report.journal', 1) . '.xlsx');
+                return Excel::download(new AccountingExport($view), trans_choice('accounting::report.journal', 1).'.xlsx');
             } elseif ($request->type == 'excel') {
-                return Excel::download(new AccountingExport($view), trans_choice('accounting::report.journal', 1) . '.xls');
+                return Excel::download(new AccountingExport($view), trans_choice('accounting::report.journal', 1).'.xls');
             } elseif ($request->type == 'csv') {
-                return Excel::download(new AccountingExport($view), trans_choice('accounting::report.journal', 1) . '.csv');
+                return Excel::download(new AccountingExport($view), trans_choice('accounting::report.journal', 1).'.csv');
             }
         }
 
         return view('accounting::report.journal', $compact_data);
+    }
+
+    private function erpReceivableAgeing(string $startDate, string $endDate)
+    {
+        $rows = collect();
+        if (Schema::hasTable('orders')) {
+            $orders = DB::table('orders')
+                ->leftJoin('customers', 'customers.id', '=', 'orders.customer_id')
+                ->whereDate('orders.order_date', '>=', $startDate)
+                ->whereDate('orders.order_date', '<=', $endDate)
+                ->select('orders.id', 'orders.order_number', 'orders.invoice_number', 'orders.order_date', 'orders.total_amount', 'orders.customer_id', 'customers.name as customer_name')
+                ->orderByDesc('orders.order_date')
+                ->limit(500)
+                ->get();
+
+            $paidByOrder = Schema::hasTable('payments')
+                ? DB::table('payments')->selectRaw('order_id, COALESCE(SUM(amount),0) as paid')->groupBy('order_id')->pluck('paid', 'order_id')
+                : collect();
+
+            foreach ($orders as $o) {
+                $total = (float) ($o->total_amount ?? 0);
+                $paid = (float) ($paidByOrder[$o->id] ?? 0);
+                $due = round($total - $paid, 2);
+                if ($due <= 0.005) {
+                    continue;
+                }
+                $days = max(0, (int) floor((strtotime($endDate) - strtotime((string) $o->order_date)) / 86400));
+                $rows->push((object) [
+                    'party' => $o->customer_name ?: ('Customer #'.$o->customer_id),
+                    'ref' => $o->invoice_number ?: $o->order_number,
+                    'date' => $o->order_date,
+                    'total' => $total,
+                    'paid' => $paid,
+                    'due' => $due,
+                    'days' => $days,
+                    'bucket' => $this->ageBucket($days),
+                ]);
+            }
+        }
+
+        return view('accounting::report.erp_ageing', [
+            'title' => 'Accounts Receivable Ageing',
+            'kind' => 'receivable',
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'rows' => $rows,
+            'ledgerUrl' => url('accounting/receivables/customer-ledger'),
+        ]);
+    }
+
+    private function erpPayableAgeing(string $startDate, string $endDate)
+    {
+        $rows = collect();
+        if (Schema::hasTable('purchases')) {
+            $purchases = DB::table('purchases')
+                ->leftJoin('suppliers', 'suppliers.id', '=', 'purchases.supplier_id')
+                ->whereDate('purchases.date', '>=', $startDate)
+                ->whereDate('purchases.date', '<=', $endDate)
+                ->where(function ($q) {
+                    $q->whereNull('purchases.cancelled_at');
+                })
+                ->select('purchases.id', 'purchases.purchase_no', 'purchases.date', 'purchases.total', 'purchases.paid_amount', 'purchases.supplier_id', 'suppliers.name as supplier_name')
+                ->orderByDesc('purchases.date')
+                ->limit(500)
+                ->get();
+
+            foreach ($purchases as $p) {
+                $total = (float) ($p->total ?? 0);
+                $paid = (float) ($p->paid_amount ?? 0);
+                $due = round($total - $paid, 2);
+                if ($due <= 0.005) {
+                    continue;
+                }
+                $days = max(0, (int) floor((strtotime($endDate) - strtotime((string) $p->date)) / 86400));
+                $rows->push((object) [
+                    'party' => $p->supplier_name ?: ('Supplier #'.$p->supplier_id),
+                    'ref' => $p->purchase_no,
+                    'date' => $p->date,
+                    'total' => $total,
+                    'paid' => $paid,
+                    'due' => $due,
+                    'days' => $days,
+                    'bucket' => $this->ageBucket($days),
+                ]);
+            }
+        }
+
+        return view('accounting::report.erp_ageing', [
+            'title' => 'Accounts Payable Ageing',
+            'kind' => 'payable',
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'rows' => $rows,
+            'ledgerUrl' => url('accounting/payables/supplier-ledger'),
+        ]);
+    }
+
+    private function ageBucket(int $days): string
+    {
+        return match (true) {
+            $days <= 30 => '0-30',
+            $days <= 60 => '31-60',
+            $days <= 90 => '61-90',
+            default => '90+',
+        };
     }
 }

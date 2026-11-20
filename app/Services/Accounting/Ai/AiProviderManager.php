@@ -37,6 +37,19 @@ class AiProviderManager
             return new FakeAiProvider;
         }
 
+        if ($driver === 'gemini' || $providerKey === 'gemini') {
+            return new GeminiAiProvider(
+                $providerKey,
+                $cfg['api_key'] ?? null,
+                $settings['endpoint'] ?? ($cfg['endpoint'] ?? null),
+                $model !== '' && $model !== 'fake-deterministic-v1'
+                    ? $model
+                    : (string) ($cfg['model'] ?? 'gemini-2.0-flash'),
+                $timeout,
+                $maxTokens,
+            );
+        }
+
         return new OpenAiCompatibleProvider(
             $providerKey,
             $cfg['api_key'] ?? null,
