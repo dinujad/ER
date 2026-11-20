@@ -257,6 +257,9 @@ Route::group(['middleware' => ['web', 'auth', 'accounting.session', 'accounting.
             Route::get('cash-flow', 'FinancialStatementController@cashFlow');
             Route::get('changes-in-equity', 'FinancialStatementController@changesInEquity');
             Route::get('trial-balance', 'FinancialStatementController@trialBalance');
+            Route::get('{statement}/{format}', 'FinancialStatementController@export')
+                ->where('statement', 'profit-and-loss|balance-sheet|cash-flow|changes-in-equity|trial-balance')
+                ->where('format', 'pdf|xlsx|xls|csv');
         });
         Route::get('custom-reports', 'CustomReportController@index');
         Route::post('custom-reports', 'CustomReportController@store');

@@ -17,6 +17,7 @@ use Database\Seeders\ResetDatabaseSeeder;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 
 return function (): void {
     $guard = function (string $key): void {
@@ -63,6 +64,7 @@ return function (): void {
             '  /all                  — clear caches + migrate',
             '  /reset-operations     — DANGER: clear purchases, inventory stock, expenses + related journals',
             '  /accounting-repair    — collapse duplicate journals + backfill missing postings',
+            '  /accounting-schema    — ensure Phase 2–5 accounting tables exist (safe / additive)',
             '  /reset-db             — DANGER: truncate data, re-seed (keeps admins)',
             '',
             'Example:',
@@ -195,6 +197,75 @@ return function (): void {
         $names = ProductionSection::whereNull('parent_id')->pluck('name')->implode(', ');
 
         return $pre($key) . "Production sections seeded.\nRoot: " . ($names ?: '(none)') . "\n\n" . Artisan::output() . $end;
+    });
+
+    Route::get('/{key}/accounting-schema', function (string $key) use ($guard, $pre, $end) {
+        $guard($key);
+
+        $files = [
+            '2026_11_15_140000_create_accounting_phase2_tables.php',
+            '2026_11_15_160000_phase2_completion_bank_match_and_recurring_docs.php',
+            '2026_11_15_200000_create_accounting_phase3_tables.php',
+            '2026_11_15_210000_phase3_completion_tables.php',
+            '2026_11_15_220000_create_accounting_phase4_tables.php',
+            '2026_11_15_230000_create_accounting_phase5_tables.php',
+            '2026_11_15_240000_add_optional_journal_entry_columns.php',
+        ];
+
+        $lines = ['Accounting schema ensure (idempotent migration up()).', ''];
+        $ok = 0;
+        $fail = 0;
+
+        try {
+            foreach ($files as $file) {
+                $path = database_path('migrations/'.$file);
+                if (! is_file($path)) {
+                    $lines[] = 'MISSING FILE: '.$file;
+                    $fail++;
+                    continue;
+                }
+
+                try {
+                    $migration = require $path;
+                    if (is_object($migration) && method_exists($migration, 'up')) {
+                        $migration->up();
+                        $lines[] = 'OK: '.$file;
+                        $ok++;
+                    } else {
+                        $lines[] = 'SKIP (no up): '.$file;
+                    }
+                } catch (Throwable $e) {
+                    $lines[] = 'FAIL: '.$file.' — '.$e->getMessage();
+                    $fail++;
+                }
+            }
+
+            $checks = [
+                'accounting_recurring_templates',
+                'accounting_recurring_runs',
+                'accounting_periods',
+                'accounting_manual_journals',
+                'fa_assets',
+                'acct_cost_centers',
+                'acct_ai_conversations',
+            ];
+            $lines[] = '';
+            $lines[] = 'Table checks:';
+            foreach ($checks as $table) {
+                $lines[] = '- '.$table.': '.(Schema::hasTable($table) ? 'exists' : 'MISSING');
+            }
+
+            $lines[] = '';
+            $lines[] = "Done. OK={$ok} FAIL={$fail}";
+
+            return $pre($key).implode("\n", $lines).$end;
+        } catch (Throwable $e) {
+            return $pre($key)."ACCOUNTING SCHEMA FAILED\n"
+                .'Exception: '.get_class($e)."\n"
+                .'Message: '.$e->getMessage()."\n"
+                .'Location: '.$e->getFile().':'.$e->getLine()
+                .$end;
+        }
     });
 
     Route::get('/{key}/accounting-repair', function (string $key) use ($guard, $pre, $end) {

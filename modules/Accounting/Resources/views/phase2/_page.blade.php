@@ -3,12 +3,14 @@
 @section('title', $pageTitle ?? 'Accounting')
 
 @section('content')
-<div class="container-fluid py-3">
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+<div class="acct-page">
+    <div class="acct-page-header d-flex flex-wrap justify-content-between align-items-start gap-2">
         <div>
-            <h1 class="h4 mb-0">{{ $pageTitle ?? '' }}</h1>
+            <h1 class="acct-page-title">{{ $pageTitle ?? '' }}</h1>
             @if(!empty($pageSub))
-                <div class="text-muted small">{{ $pageSub }} · LKR</div>
+                <p class="acct-page-sub">{{ $pageSub }} · LKR</p>
+            @else
+                <p class="acct-page-sub">Accounting Workspace · LKR</p>
             @endif
         </div>
         <div class="d-flex flex-wrap gap-2">

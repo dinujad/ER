@@ -21,34 +21,44 @@ class CostCenterReportController extends Controller
     {
         $from = $request->get('from', now()->startOfMonth()->toDateString());
         $to = $request->get('to', now()->toDateString());
-        $ccParam = $request->get('cost_center_id', '');
+        $ccParam = (string) $request->get('cost_center_id', 'all');
 
-        $costCenterId = $ccParam === 'unassigned' || $ccParam === '' ? null : (int) $ccParam;
-        if ($ccParam !== '' && $ccParam !== 'unassigned' && $costCenterId <= 0) {
-            $costCenterId = null;
-        }
+        [$report, $scopeLabel, $scopeMode] = $this->resolveReport($ccParam, $from, $to);
 
-        $filterCc = null;
-        if ($ccParam === 'unassigned' || $ccParam === '') {
-            $filterCc = null;
-        } elseif (ctype_digit((string) $ccParam)) {
-            $filterCc = (int) $ccParam;
-        }
-        $report = CostCenterReportService::profitAndLoss($filterCc, $from, $to);
         $centers = Schema::hasTable('acct_cost_centers')
             ? AcctCostCenter::query()->orderBy('code')->get()
             : collect();
 
-        return view('accounting::phase3.cost_center_reports.pl', compact('report', 'centers', 'from', 'to', 'ccParam'));
+        $income = (float) ($report['income'] ?? 0);
+        $expense = (float) ($report['expense'] ?? 0);
+        $net = (float) ($report['net'] ?? 0);
+        $margin = $income > 0.0001 ? round(($net / $income) * 100, 2) : null;
+        $hasLines = ! empty($report['lines']);
+        $hasCostCenterColumn = Schema::hasColumn('journal_entries', 'cost_center_id');
+
+        return view('accounting::phase3.cost_center_reports.pl', compact(
+            'report',
+            'centers',
+            'from',
+            'to',
+            'ccParam',
+            'scopeLabel',
+            'scopeMode',
+            'income',
+            'expense',
+            'net',
+            'margin',
+            'hasLines',
+            'hasCostCenterColumn'
+        ));
     }
 
     public function profitAndLossExport(Request $request, string $format)
     {
         $from = $request->get('from', now()->startOfMonth()->toDateString());
         $to = $request->get('to', now()->toDateString());
-        $ccParam = $request->get('cost_center_id', '');
-        $costCenterId = $ccParam === 'unassigned' ? null : ($ccParam !== '' ? (int) $ccParam : null);
-        $report = CostCenterReportService::profitAndLoss($costCenterId, $from, $to);
+        $ccParam = (string) $request->get('cost_center_id', 'all');
+        [$report] = $this->resolveReport($ccParam, $from, $to);
         $data = compact('report', 'from', 'to', 'ccParam');
         $view = view('accounting::phase3.reports.cost_center_pl', $data);
 
@@ -63,16 +73,50 @@ class CostCenterReportController extends Controller
     {
         $from = $request->get('from', now()->startOfMonth()->toDateString());
         $to = $request->get('to', now()->toDateString());
-        $ccParam = $request->get('cost_center_id', 'unassigned');
+        $ccParam = (string) $request->get('cost_center_id', 'unassigned');
         $q = DB::table('journal_entries')->where('reversed', 0)->whereBetween('date', [$from, $to])->orderByDesc('date');
+
         if ($ccParam === 'unassigned') {
             $q->whereNull('cost_center_id');
-        } elseif ($ccParam !== '') {
+        } elseif ($ccParam !== '' && $ccParam !== 'all' && ctype_digit($ccParam)) {
             $q->where('cost_center_id', (int) $ccParam);
         }
 
         $entries = Schema::hasTable('journal_entries') ? $q->paginate(50)->withQueryString() : collect();
 
         return view('accounting::phase3.cost_center_reports.journals', compact('entries', 'from', 'to', 'ccParam'));
+    }
+
+    /**
+     * @return array{0: array<string, mixed>, 1: string, 2: string}
+     */
+    private function resolveReport(string $ccParam, string $from, string $to): array
+    {
+        if ($ccParam === 'all' || $ccParam === '') {
+            return [
+                CostCenterReportService::companyWideProfitAndLoss($from, $to),
+                'All cost centers (company-wide)',
+                'all',
+            ];
+        }
+
+        if ($ccParam === 'unassigned') {
+            return [
+                CostCenterReportService::profitAndLoss(null, $from, $to),
+                'Unassigned journals only',
+                'unassigned',
+            ];
+        }
+
+        $id = (int) $ccParam;
+        $name = Schema::hasTable('acct_cost_centers')
+            ? (string) (AcctCostCenter::query()->where('id', $id)->value('name') ?? ('#'.$id))
+            : '#'.$id;
+
+        return [
+            CostCenterReportService::profitAndLoss($id, $from, $to),
+            'Cost center: '.$name,
+            'center',
+        ];
     }
 }

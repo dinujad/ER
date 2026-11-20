@@ -19,6 +19,12 @@ return [
             'endpoint' => env('ACCOUNTING_AI_OPENAI_ENDPOINT', 'https://api.openai.com/v1'),
             'model' => env('ACCOUNTING_AI_OPENAI_MODEL', 'gpt-4o-mini'),
         ],
+        'gemini' => [
+            'driver' => 'gemini',
+            'api_key' => env('ACCOUNTING_AI_GEMINI_API_KEY'),
+            'endpoint' => env('ACCOUNTING_AI_GEMINI_ENDPOINT', 'https://generativelanguage.googleapis.com/v1beta'),
+            'model' => env('ACCOUNTING_AI_GEMINI_MODEL', 'gemini-2.0-flash'),
+        ],
         'compatible' => [
             'driver' => 'openai_compatible',
             'api_key' => env('ACCOUNTING_AI_COMPATIBLE_API_KEY'),

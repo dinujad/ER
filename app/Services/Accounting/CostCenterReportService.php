@@ -88,6 +88,7 @@ class CostCenterReportService
                 $expense += $amount;
             }
             $lines[] = [
+                'account_id' => (int) $row->account_id,
                 'gl_code' => $row->gl_code,
                 'name' => $row->name,
                 'account_type' => $row->account_type,

@@ -137,6 +137,18 @@ class FinancialStatementService
      */
     public static function changesInEquity(string $from, string $to): array
     {
+        if (! Schema::hasTable('chart_of_accounts')) {
+            return [
+                'currency' => 'LKR',
+                'from' => $from,
+                'to' => $to,
+                'lines' => [],
+                'current_period_earnings' => 0.0,
+                'opening_equity' => 0.0,
+                'closing_equity' => 0.0,
+            ];
+        }
+
         $equityAccounts = DB::table('chart_of_accounts')
             ->where('account_type', 'equity')
             ->where('active', 1)
@@ -191,6 +203,7 @@ class FinancialStatementService
                 continue;
             }
             $rows[] = [
+                'account_id' => $row['account_id'] ?? null,
                 'gl_code' => $row['gl_code'],
                 'name' => $row['name'],
                 'account_type' => $row['account_type'],
@@ -339,6 +352,10 @@ class FinancialStatementService
 
     private static function cashGlMovement(string $from, string $to): float
     {
+        if (! Schema::hasTable('chart_of_accounts') || ! Schema::hasTable('journal_entries')) {
+            return 0.0;
+        }
+
         $ids = array_filter([
             AccountingService::accountId(AccountingService::GL_CASH),
             AccountingService::accountId(AccountingService::GL_BANK),
