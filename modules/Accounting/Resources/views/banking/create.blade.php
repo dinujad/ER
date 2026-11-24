@@ -7,7 +7,6 @@
 @endsection
 
 @section('page_body')
-@if($errors->any())<div class="alert alert-danger py-2">{{ $errors->first() }}</div>@endif
 <form method="POST" action="{{ url('accounting/banking') }}" id="addBank">
 @csrf
 <div class="row g-3">

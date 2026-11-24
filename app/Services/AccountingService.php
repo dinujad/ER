@@ -31,6 +31,7 @@ class AccountingService
     public const GL_OWNER_EQUITY     = '3000';
     public const GL_SALES_REVENUE    = '4000';
     public const GL_SALES_RETURNS    = '4010';
+    public const GL_SALES_DISCOUNTS  = '4020'; // settlement discounts on customer payments
     public const GL_COST_OF_GOODS    = '5000';
     public const GL_PURCHASES        = '5100';
     public const GL_GENERAL_EXPENSE  = '6000';

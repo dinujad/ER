@@ -317,9 +317,16 @@ class JournalEntryController extends Controller
      * @param int $id
      * @return Response
      */
+    /**
+     * Posted journals are never edited in place (audit trail): reverse and post a corrected entry instead.
+     * The old edit screen rendered without data and always failed.
+     */
     public function edit($id)
     {
-        return view('accounting::journal_entry.edit');
+        abort_unless(JournalEntry::where('transaction_number', $id)->exists(), 404);
+
+        return redirect('accounting/journal_entry/' . $id . '/show')
+            ->with('status', 'Posted journals cannot be edited. Use Reverse, then post a corrected journal.');
     }
 
     public function reverse($old_transaction_number)

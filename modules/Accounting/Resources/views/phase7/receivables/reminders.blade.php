@@ -7,7 +7,6 @@
 @endsection
 
 @section('page_body')
-@if(session('status'))<div class="alert alert-success py-2">{{ session('status') }}</div>@endif
 
 <div class="row g-3 mb-3">
     <div class="col-lg-7"><div class="card h-100"><div class="card-body">

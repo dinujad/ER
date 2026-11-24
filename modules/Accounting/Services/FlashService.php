@@ -51,4 +51,10 @@ class FlashService
     {
         return redirect()->back()->withInput();
     }
+
+    /** Used by budgets, depreciation, fixed assets and attachments — it was missing, so every error there crashed (500). */
+    public function redirectBack()
+    {
+        return redirect()->back();
+    }
 }

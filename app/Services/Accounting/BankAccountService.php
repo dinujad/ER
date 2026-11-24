@@ -172,7 +172,7 @@ class BankAccountService
     {
         $acc = DB::table('bank_accounts')->where('id', $id)->first();
         if (!$acc) {
-            throw new RuntimeException('Bank account not found.');
+            throw (new \Illuminate\Database\Eloquent\ModelNotFoundException('Bank account not found.'));
         }
 
         return $acc;

@@ -25,8 +25,6 @@
 @endsection
 
 @section('page_body')
-@if(session('status'))<div class="alert alert-success py-2">{{ session('status') }}</div>@endif
-@if($errors->any())<div class="alert alert-danger py-2">{{ $errors->first() }}</div>@endif
 
 @if(!$ws)
     <div class="alert alert-info">Add a bank account in the chart of accounts first.</div>

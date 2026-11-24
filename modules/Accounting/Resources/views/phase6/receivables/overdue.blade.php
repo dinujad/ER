@@ -8,7 +8,6 @@
 @endsection
 
 @section('page_body')
-@if(session('status'))<div class="alert alert-success py-2">{{ session('status') }}</div>@endif
 
 <div class="row g-2 mb-3">
     @foreach($buckets as $b)

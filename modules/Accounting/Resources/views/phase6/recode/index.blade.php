@@ -3,11 +3,9 @@
 @php $pageTitle = 'Find & Recode'; $pageSub = 'Move journal lines that were posted to the wrong account — a reclassification journal is posted, nothing is deleted'; @endphp
 
 @section('page_body')
-@if(session('status'))<div class="alert alert-success py-2">{{ session('status') }}</div>@endif
 @if(session('recode_skipped'))
     <div class="alert alert-warning py-2 small">@foreach(session('recode_skipped') as $s)<div>{{ $s }}</div>@endforeach</div>
 @endif
-@if($errors->any())<div class="alert alert-danger py-2">{{ $errors->first() }}</div>@endif
 
 <form method="GET" class="row g-2 mb-3 align-items-end">
     <div class="col-md-4">

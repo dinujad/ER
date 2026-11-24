@@ -8,8 +8,6 @@
 @endsection
 
 @section('page_body')
-@if(session('status'))<div class="alert alert-success py-2">{{ session('status') }}</div>@endif
-@if($errors->any())<div class="alert alert-danger py-2">{{ $errors->first() }}</div>@endif
 
 <div class="card mb-3 {{ $failed->isNotEmpty() ? 'border-danger' : '' }}"><div class="card-header"><strong>Failed runs</strong> <span class="small text-muted">({{ $failed->count() }}) — the template is stuck on that date until the run succeeds</span></div>
 <div class="card-body p-0"><table class="table table-sm align-middle mb-0">

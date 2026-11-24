@@ -335,6 +335,29 @@ class AccountingPhase7Test extends TestCase
         $this->artisan('accounting:send-payment-reminders')->expectsOutputToContain('off')->assertSuccessful();
     }
 
+    public function test_payment_settlement_discount_is_posted_and_reversed_on_bounce(): void
+    {
+        $date = now()->toDateString();
+        $c = Customer::query()->create(['name' => 'Disc Shop']);
+        $o = Order::query()->create(['order_number' => 'O-D', 'customer_id' => $c->id, 'user_id' => 7, 'subtotal' => 10000, 'total_amount' => 10000,
+            'status' => Order::STATUS_COMPLETED, 'invoice_number' => 'INV-D', 'order_date' => $date]);
+        app(SalesAccountingService::class)->synchronizeOrder($o->fresh());
+
+        $p = Payment::query()->create(['order_id' => $o->id, 'amount' => 9800, 'discount_amount' => 200, 'settlement_amount' => 10000,
+            'payment_method' => 'bank_transfer', 'payment_date' => $date]);
+        app(SalesAccountingService::class)->synchronizePayment($p->fresh());
+        $this->assertSame(0.0, (float) $o->fresh()->due_amount);
+        $this->assertSame(0.0, $this->glBalance(AccountingService::GL_ACCOUNTS_RECV));    // was 200 left open before
+        $this->assertSame(200.0, $this->glBalance('4020'));
+
+        $chq = Payment::query()->create(['order_id' => $o->id, 'amount' => 950, 'discount_amount' => 50, 'settlement_amount' => 1000,
+            'payment_method' => 'cheque', 'payment_date' => $date, 'cheque_status' => 'pending']);
+        app(SalesAccountingService::class)->synchronizePaymentDiscount($chq->fresh());
+        $this->assertSame(250.0, $this->glBalance('4020'));
+        $chq->update(['cheque_status' => Payment::CHEQUE_BOUNCED]);           // observer re-syncs the discount
+        $this->assertSame(200.0, $this->glBalance('4020'));
+    }
+
     private function expectExceptionOnce(callable $fn): void
     {
         try {

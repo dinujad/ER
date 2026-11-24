@@ -196,9 +196,12 @@ class ChartOfAccountController extends Controller
                 $chart_of_account->name = $request->name;
                 $chart_of_account->parent_id = $parentId;
                 $chart_of_account->gl_code = $request->gl_code;
-                $chart_of_account->account_type = $request->account_type;
-                $chart_of_account->allow_manual = $request->allow_manual;
-                $chart_of_account->active = $request->active;
+                // account type comes from the form, or from the chosen subtype (empty type used to crash the save)
+                $chart_of_account->account_type = $request->account_type
+                    ?: \Modules\Accounting\Entities\AccountSubtype::query()->whereKey($request->account_subtype_id)->value('account_type')
+                    ?: 'asset';
+                $chart_of_account->allow_manual = (int) ($request->allow_manual ?? 0);
+                $chart_of_account->active = (int) ($request->active ?? 1);
                 $chart_of_account->notes = $request->notes;
                 $chart_of_account->business_id = session('business.id');
                 $chart_of_account->opening_balance = $request->boolean('has_opening_balance')
@@ -332,9 +335,11 @@ class ChartOfAccountController extends Controller
         $chart_of_account->name = $request->name;
         $chart_of_account->parent_id = $parentId;
         $chart_of_account->gl_code = $request->gl_code;
-        $chart_of_account->account_type = $request->account_type;
-        $chart_of_account->allow_manual = $request->allow_manual;
-        $chart_of_account->active = $request->active;
+        $chart_of_account->account_type = $request->account_type
+            ?: \Modules\Accounting\Entities\AccountSubtype::query()->whereKey($request->account_subtype_id)->value('account_type')
+            ?: $chart_of_account->account_type;
+        $chart_of_account->allow_manual = (int) ($request->allow_manual ?? $chart_of_account->allow_manual ?? 0);
+        $chart_of_account->active = (int) ($request->active ?? $chart_of_account->active ?? 1);
         $chart_of_account->notes = $request->notes;
         $chart_of_account->business_id = session('business.id');
         $chart_of_account->opening_balance = $request->boolean('has_opening_balance')

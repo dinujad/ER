@@ -16,8 +16,6 @@
     $raw = $extraction ? (json_decode($extraction->raw_text ?? '{}', true) ?: []) : [];
     $suppliers = \Illuminate\Support\Facades\DB::table('suppliers')->orderBy('name')->get(['id', 'name', 'company_name', 'tax_vat_no']);
 @endphp
-@if(session('status'))<div class="alert alert-success py-2">{{ session('status') }}</div>@endif
-@if($errors->any())<div class="alert alert-danger py-2">{{ $errors->first() }}</div>@endif
 
 <div class="d-flex flex-wrap gap-3 small mb-3">
     <span>Status: <strong>{{ str_replace('_', ' ', $document->status) }}</strong></span>

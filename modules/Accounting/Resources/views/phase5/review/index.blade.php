@@ -1,6 +1,5 @@
 @extends('accounting::phase2._page')
 @section('page_body')
-@if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
 <table class="table table-sm">
     <thead><tr><th>ID</th><th>Type</th><th>Title</th><th>Confidence</th><th>Status</th><th></th></tr></thead>
     <tbody>

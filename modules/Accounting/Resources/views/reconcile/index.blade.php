@@ -107,9 +107,10 @@
 </div>
 
 {{-- Undo form (hidden) --}}
-<form id="undo_last_reconcile_form" method="POST" action="{{ url('accounting/reconcile/undo_last_reconcile') }}" class="d-none">
+<form id="undo_last_reconcile_form" method="POST" action="{{ url('accounting/reconcile/undo') }}" class="d-none">
     @csrf
     <input type="hidden" name="chart_of_account_id" id="undo_account_id">
+    <input type="hidden" name="last_reconcile_transaction_id" id="undo_last_txn_id">
     <input type="hidden" name="chart_of_account_name" id="undo_account_name">
 </form>
 
@@ -161,6 +162,7 @@ $(document).ready(function(){
         document.getElementById('coa_name_hidden').value = acct.name || '';
         document.getElementById('undo_account_id').value  = id;
         document.getElementById('undo_account_name').value = acct.name || '';
+        document.getElementById('undo_last_txn_id').value = acct.last_reconcile_transaction_id || '';
         var hasReconcile = !!acct.last_reconcile_transaction_id;
         $('#btn_undo').prop('disabled', !hasReconcile);
         $('#account_summary').css('display','flex');

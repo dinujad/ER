@@ -28,11 +28,12 @@ class ReconcileController extends Controller
 
     public function start_reconcile(Request $request)
     {
+        $this->normalizeAmounts($request, ['opening_balance', 'ending_balance']);
         $request->validate([
-            'opening_balance' => ['required'],
-            'ending_balance' => ['required'],
-            'ending_date' => ['required'],
-            'chart_of_account_id' => ['required'],
+            'opening_balance' => ['required', 'numeric'],
+            'ending_balance' => ['required', 'numeric'],
+            'ending_date' => ['required', 'date'],
+            'chart_of_account_id' => ['required', 'integer'],
         ]);
 
         $computed_data = $request->only(['opening_balance', 'ending_balance', 'ending_date']);
@@ -49,7 +50,7 @@ class ReconcileController extends Controller
             return redirect('accounting/reconcile')->withInput();
         }
 
-        $difference = $request->ending_balance - $chart_of_account->current_balance;
+        $difference = (float) $request->ending_balance - (float) $chart_of_account->current_balance;
 
         $data = [
             'chart_of_accounts' => ChartOfAccount::with('account_subtype')->orderBy('gl_code')->get(),
@@ -70,10 +71,11 @@ class ReconcileController extends Controller
 
     public function store_reconcile(Request $request)
     {
+        $this->normalizeAmounts($request, ['ending_balance', 'difference']);
         $request->validate([
-            'ending_balance' => ['required'],
-            'difference' => ['required'],
-            'chart_of_account_id' => ['required'],
+            'ending_balance' => ['required', 'numeric'],
+            'difference' => ['required', 'numeric'],
+            'chart_of_account_id' => ['required', 'integer'],
         ]);
 
         try {
@@ -146,5 +148,20 @@ class ReconcileController extends Controller
 
         (new FlashService())->onSuccess(trans('accounting::general.undo_reconcile_success', ['account' => $chart_of_account->name]));
         return redirect('accounting/reconcile');
+    }
+
+    /** Accept amounts typed as "1,250,000.00" or with spaces/currency symbols. */
+    private function normalizeAmounts(Request $request, array $keys): void
+    {
+        $clean = [];
+        foreach ($keys as $k) {
+            $v = $request->input($k);
+            if (is_string($v)) {
+                $clean[$k] = preg_replace('/[^0-9.\-]/', '', $v);
+            }
+        }
+        if ($clean) {
+            $request->merge($clean);
+        }
     }
 }

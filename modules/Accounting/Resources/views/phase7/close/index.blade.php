@@ -17,8 +17,6 @@
 @endsection
 
 @section('page_body')
-@if(session('status'))<div class="alert alert-success py-2">{{ session('status') }}</div>@endif
-@if($errors->any())<div class="alert alert-danger py-2">{{ $errors->first() }}</div>@endif
 
 <div class="d-flex flex-wrap gap-3 align-items-center mb-3">
     @foreach(['Checks' => true, 'Signed off' => in_array($review->status, ['signed_off', 'locked'], true), 'Locked' => $locked] as $label => $done)

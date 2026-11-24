@@ -8,7 +8,6 @@
 @endsection
 
 @section('page_body')
-@if($errors->any())<div class="alert alert-danger py-2">{{ $errors->first() }}</div>@endif
 <form method="GET" class="row g-2 mb-3 align-items-end">
     <div class="col-md-3"><label class="form-label small mb-0">Due on or before</label><input type="date" name="due_by" value="{{ $dueBy }}" class="form-control form-control-sm"></div>
     <div class="col-auto"><button class="btn btn-primary btn-sm">Show</button></div>

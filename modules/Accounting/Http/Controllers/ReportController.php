@@ -124,7 +124,7 @@ class ReportController extends Controller
             })
             ->selectRaw("chart_of_accounts.name,chart_of_accounts.gl_code,chart_of_accounts.account_type,COALESCE(business_locations.name,'—') business_location,SUM(journal_entries.debit) debit,SUM(journal_entries.credit) credit")
             ->groupBy("chart_of_accounts.id")
-            ->orderBy('account_type')
+            ->orderBy('chart_of_accounts.account_type')
             ->get();
 
         $compact_data = compact('start_date', 'end_date', 'location_id', 'data', 'business_locations', 'currency_code', 'account_types');
@@ -170,7 +170,7 @@ class ReportController extends Controller
                 $q->where('chart_of_accounts.business_id', $bid)->orWhere('chart_of_accounts.business_id', 0);
             })
             ->selectRaw("chart_of_accounts.name,chart_of_accounts.gl_code,chart_of_accounts.account_type,COALESCE(business_locations.name,'—') business_location,SUM(journal_entries.debit) debit,SUM(journal_entries.credit) credit")
-            ->groupBy("chart_of_accounts.id")->orderBy('account_type')
+            ->groupBy("chart_of_accounts.id")->orderBy('chart_of_accounts.account_type')
             ->get();
         $business_locations = BusinessLocation::getDropdownCollection(session('business.id'));
         $currency_code = currency_code();
@@ -245,7 +245,7 @@ class ReportController extends Controller
                     $q->where('chart_of_accounts.business_id', $bid)->orWhere('chart_of_accounts.business_id', 0);
                 })
                 ->groupBy("chart_of_accounts.id", "chart_of_accounts.name", "chart_of_accounts.gl_code", "chart_of_accounts.account_type")
-                ->orderBy('account_type')
+                ->orderBy('chart_of_accounts.account_type')
                 ->get();
 
             $compact_data = compact('end_date', 'location_id', 'data', 'business_locations', 'currency_code', 'account_types');
@@ -322,7 +322,7 @@ class ReportController extends Controller
                 ($hasSubtypes ? 'account_subtypes.name as account_subtype, account_subtypes.id as account_subtype_id' : 'NULL as account_subtype, NULL as account_subtype_id')
             )
             ->groupBy('chart_of_accounts.id')
-            ->orderBy('account_type')
+            ->orderBy('chart_of_accounts.account_type')
             ->get();
 
         $account_subtype_ids = $data->pluck('account_subtype_id')->unique();

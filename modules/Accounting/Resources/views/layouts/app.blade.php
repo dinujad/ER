@@ -62,11 +62,23 @@
         </header>
 
         <main class="acct-ws-content" id="acctMainContent">
-            @if(session('status'))
-                <div class="alert alert-info border-0 shadow-sm" role="status">{{ session('status') }}</div>
+            @php
+                // FlashService::onSave/onUpdate/onDelete store status as ['success' => 1, 'msg' => '…'] — printing the array crashed the page.
+                $flashStatus = session('status');
+                $flashStatusOk = is_array($flashStatus) ? (bool) ($flashStatus['success'] ?? true) : true;
+                $flashStatus = is_array($flashStatus) ? ($flashStatus['msg'] ?? null) : $flashStatus;
+            @endphp
+            @if(filled($flashStatus) && is_string($flashStatus))
+                <div class="alert {{ $flashStatusOk ? 'alert-success' : 'alert-danger' }} border-0 shadow-sm" role="status">{{ $flashStatus }}</div>
             @endif
-            @if(session('success'))
+            @if(session('success') && is_string(session('success')))
                 <div class="alert alert-success border-0 shadow-sm" role="status">{{ session('success') }}</div>
+            @endif
+            @if(session('warning') && is_string(session('warning')))
+                <div class="alert alert-warning border-0 shadow-sm" role="alert">{{ session('warning') }}</div>
+            @endif
+            @if(session('error') && is_string(session('error')))
+                <div class="alert alert-danger border-0 shadow-sm" role="alert">{{ session('error') }}</div>
             @endif
             @if(isset($errors) && $errors->any())
                 <div class="alert alert-danger border-0 shadow-sm" role="alert">

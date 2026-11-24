@@ -22,8 +22,6 @@
 @endsection
 
 @section('page_body')
-@if(session('status'))<div class="alert alert-success py-2">{{ session('status') }}</div>@endif
-@if($errors->any())<div class="alert alert-danger py-2">{{ $errors->first() }}</div>@endif
 
 <nav class="d-flex flex-wrap gap-2 mb-3" aria-label="Bill sections">
     <a href="#lines" class="btn btn-sm btn-outline-secondary">Lines</a>

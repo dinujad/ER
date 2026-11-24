@@ -1,6 +1,5 @@
 @extends('accounting::phase2._page')
 @section('page_body')
-@if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
 <form method="post" action="{{ url('accounting/phase5/alerts/run') }}" class="mb-3">@csrf
     <button class="btn btn-primary btn-sm">Run anomaly detection</button>
     <span class="small text-muted ms-2">Alerts are review indicators — not fraud accusations. No auto-reversals.</span>

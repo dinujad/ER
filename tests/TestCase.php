@@ -11,5 +11,8 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
         \App\Support\SchemaCache::flush();
+        \App\Models\Order::flushSchemaCache();
+        \App\Models\Purchase::flushSchemaCache();
+        \App\Services\Audit\AuditLogger::flushCache();
     }
 }

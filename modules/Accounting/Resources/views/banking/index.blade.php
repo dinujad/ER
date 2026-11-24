@@ -8,7 +8,6 @@
 @endsection
 
 @section('page_body')
-@if(session('status'))<div class="alert alert-success py-2">{{ session('status') }}</div>@endif
 
 @if($accounts->isEmpty())
     <div class="card"><div class="card-body text-center py-5">

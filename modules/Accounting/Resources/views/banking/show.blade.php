@@ -13,8 +13,6 @@
 @endsection
 
 @section('page_body')
-@if(session('status'))<div class="alert alert-success py-2">{{ session('status') }}</div>@endif
-@if($errors->any())<div class="alert alert-danger py-2">{{ $errors->first() }}</div>@endif
 @if($archived)<div class="alert alert-secondary py-2">Archived {{ $acc->archived_at ? \Illuminate\Support\Carbon::parse($acc->archived_at)->format('d M Y') : '' }}. History stays in the reports; new imports are blocked.</div>@endif
 
 <div class="row g-2 mb-3">

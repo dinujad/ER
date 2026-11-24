@@ -109,6 +109,13 @@ class PaymentRunService
             throw new RuntimeException('Bank account missing for: ' . $missing->implode(', ') . '. Add it on the supplier first.');
         }
 
+        if ($format === 'slips_csv') {
+            $noCodes = $items->filter(fn ($i) => blank($i->bank_code) || blank($i->branch_code))->pluck('supplier_name')->unique()->values();
+            if ($noCodes->isNotEmpty()) {
+                throw new RuntimeException('SLIPS needs the bank code and branch code for: ' . $noCodes->implode(', ') . '. Add them on the supplier, or download the generic CSV.');
+            }
+        }
+
         $out = fopen('php://temp', 'r+');
         if ($format === 'slips_csv') {
             fputcsv($out, ['Bank Code', 'Branch Code', 'Account No', 'Account Name', 'Amount', 'Reference', 'Particulars']);
@@ -230,7 +237,7 @@ class PaymentRunService
     {
         $run = DB::table('acct_payment_runs')->where('id', $id)->first();
         if (!$run) {
-            throw new RuntimeException('Payment run not found.');
+            throw (new \Illuminate\Database\Eloquent\ModelNotFoundException('Payment run not found.'));
         }
 
         return $run;

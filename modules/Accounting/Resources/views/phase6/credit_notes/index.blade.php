@@ -3,8 +3,6 @@
 @php $pageTitle = 'Credit Notes'; $pageSub = 'Return credit notes are created automatically with each sale return; adjustment credit notes are raised from an invoice'; @endphp
 
 @section('page_body')
-@if(session('status'))<div class="alert alert-success py-2">{{ session('status') }}</div>@endif
-@if($errors->any())<div class="alert alert-danger py-2">{{ $errors->first() }}</div>@endif
 <ul class="nav nav-pills mb-3 small">
     <li class="nav-item"><a class="nav-link {{ !request('type') ? 'active' : '' }}" href="{{ url('accounting/phase6/credit-notes') }}">All</a></li>
     <li class="nav-item"><a class="nav-link {{ request('type') === 'return' ? 'active' : '' }}" href="{{ url('accounting/phase6/credit-notes?type=return') }}">Goods returned</a></li>

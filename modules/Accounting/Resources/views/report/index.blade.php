@@ -59,11 +59,6 @@ $reportIcons = [
     'income'=>'bi-graph-up-arrow',
     'expense'=>'bi-receipt',
 ];
-function reportIcon($title){
-    foreach(['trial','ledger','profit','balance','cash','budget','payable','receivable','journal','income','expense'] as $k)
-        if(stripos($title,$k)!==false) return 'bi-'.$k;
-    return 'bi-file-earmark-text';
-}
 @endphp
 
 @foreach($reports as $idx => $section)

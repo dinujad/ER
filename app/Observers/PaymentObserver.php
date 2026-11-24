@@ -69,6 +69,15 @@ class PaymentObserver
 
     public function updated(Payment $payment): void
     {
+        // Discount follows the payment: bounced cheque / changed discount → re-sync the discount posting only.
+        if ($payment->wasChanged(['cheque_status', 'discount_amount', 'settlement_amount'])) {
+            try {
+                app(SalesAccountingService::class)->synchronizePaymentDiscount($payment->fresh(['order']) ?? $payment);
+            } catch (\Throwable $e) {
+                Log::error('PaymentObserver discount sync failed: '.$e->getMessage(), ['payment_id' => $payment->getKey()]);
+            }
+        }
+
         if (!$payment->wasChanged([
             'entry_type',
             'amount',

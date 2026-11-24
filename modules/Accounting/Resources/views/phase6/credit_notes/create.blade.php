@@ -3,7 +3,6 @@
 @php $pageTitle = 'New credit note — Invoice ' . $order->invoice_number; $pageSub = ($order->customer?->business_name ?: $order->customer?->name) . ' · price reduction or goodwill credit (no goods returned)'; @endphp
 
 @section('page_body')
-@if($errors->any())<div class="alert alert-danger py-2">{{ $errors->first() }}</div>@endif
 <div class="row g-3">
     <div class="col-lg-7">
         <div class="card"><div class="card-body">

@@ -1,6 +1,5 @@
 @extends('accounting::phase2._page')
 @section('page_body')
-@if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
 <form method="post" action="{{ url('accounting/phase5/ocr') }}" enctype="multipart/form-data" class="mb-4 border rounded p-3">
     @csrf
     <div class="row g-2 align-items-end">

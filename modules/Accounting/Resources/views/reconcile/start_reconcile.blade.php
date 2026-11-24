@@ -65,7 +65,7 @@
                                                                 <div class="money-field">
                                                                     <div class="inlineBlock">
                                                                         <div class="ha-numeral medium">{{ $currency_code }}
-                                                                            {{ number_format($ending_balance) }}</div>
+                                                                            {{ number_format((float) $ending_balance, 2) }}</div>
                                                                         <div class="ha-numeral description">
                                                                             <span>{{ strtoupper(trans('accounting::general.statement_ending_balance')) }}</span>
                                                                         </div>
@@ -80,7 +80,7 @@
                                                                     <div class="inlineBlock">
                                                                         <div class="ha-numeral medium" id="cleared_balance_amount">
                                                                             {{ $currency_code }}
-                                                                            {{ number_format($chart_of_account->current_balance) }}</div>
+                                                                            {{ number_format((float) $chart_of_account->current_balance, 2) }}</div>
                                                                         <div class="ha-numeral description">
                                                                             <span>{{ strtoupper(trans('accounting::general.cleared_balance')) }}</span>
                                                                         </div>
@@ -111,7 +111,7 @@
                                                                     <div class="inlineBlock">
                                                                         <div class="ha-numeral" id="beginning_balance_amount">
                                                                             {{ $currency_code }}
-                                                                            {{ number_format($opening_balance) }}</div>
+                                                                            {{ number_format((float) $opening_balance, 2) }}</div>
                                                                         <div class="ha-numeral description">
                                                                             <span>{{ strtoupper(trans('accounting::general.beginning_balance')) }}</span>
                                                                         </div>
@@ -127,7 +127,7 @@
                                                                 <div class="money-field">
                                                                     <div class="inlineBlock">
                                                                         <div class="ha-numeral" id="payment_amount">{{ $currency_code }}
-                                                                            {{ number_format($total_debit) }}</div>
+                                                                            {{ number_format((float) $total_debit, 2) }}</div>
                                                                         <div class="ha-numeral description">
                                                                             <span id="count_payments">{{ $currency_code }} {{ $no_debit }}
                                                                                 {{ strtoupper(trans_choice('accounting::lang.payment', 2)) }}</span>
@@ -144,7 +144,7 @@
                                                                 <div class="money-field">
                                                                     <div class="inlineBlock">
                                                                         <div class="ha-numeral" id="deposit_amount">{{ $currency_code }}
-                                                                            {{ number_format($total_credit) }}</div>
+                                                                            {{ number_format((float) $total_credit, 2) }}</div>
                                                                         <div class="ha-numeral description">
                                                                             <span id="count_deposit">{{ $currency_code }} {{ $no_credit }}
                                                                                 {{ strtoupper(trans_choice('accounting::lang.deposit', 2)) }}</span>
@@ -164,7 +164,7 @@
                                                 <div class="money-field">
                                                     <div class="inlineBlock">
                                                         <div class="ha-numeral medium" id="difference_amount">{{ $currency_code }}
-                                                            {{ number_format($difference) }} </div>
+                                                            {{ number_format((float) $difference, 2) }} </div>
                                                         <div class="ha-numeral description">
                                                             <span
                                                                 class="tool-tipped">{{ strtoupper(trans_choice('accounting::general.difference', 1)) }}</span>
@@ -213,10 +213,10 @@
                                                         <td>{{ $chart_of_account->gl_code }}</td>
                                                         <td>{{ $key->notes }}</td>
                                                         <td style="text-align:right">
-                                                            {{ number_format($key->debit, 2) }}
+                                                            {{ number_format((float) $key->debit, 2) }}
                                                         </td>
                                                         <td style="text-align:right">
-                                                            {{ number_format($key->credit, 2) }}
+                                                            {{ number_format((float) $key->credit, 2) }}
                                                         </td>
                                                         <td style="text-align:right">
                                                             {{ number_format($total_credit - $total_debit, 2) }}
@@ -228,8 +228,8 @@
                                                 <tr>
                                                     <td colspan="3"><b>{{ trans_choice('accounting::lang.total', 1) }} ({{ $currency_code }})</b>
                                                     </td>
-                                                    <td style="text-align:right"><b>{{ number_format($total_debit, 2) }}</b></td>
-                                                    <td style="text-align:right"><b>{{ number_format($total_credit, 2) }}</b></td>
+                                                    <td style="text-align:right"><b>{{ number_format((float) $total_debit, 2) }}</b></td>
+                                                    <td style="text-align:right"><b>{{ number_format((float) $total_credit, 2) }}</b></td>
                                                     <td style="text-align:right"><b>{{ number_format($total_credit - $total_debit, 2) }}</b></td>
                                                 </tr>
                                             </tfoot>

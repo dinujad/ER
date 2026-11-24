@@ -133,6 +133,8 @@ class SalesAccountingService
 
     public function synchronizePayment(Payment $payment): void
     {
+        $this->synchronizePaymentDiscount($payment);
+
         if ($payment->isRefund()) {
             $this->postRefund($payment);
 
@@ -177,8 +179,40 @@ class SalesAccountingService
         );
     }
 
+    /**
+     * Settlement discount on a payment line (settlement = cash + discount) reduces what the customer owes
+     * without cash: Dr Sales Discounts / Cr Accounts receivable. Removed again if the payment stops counting
+     * (bounced cheque) or the discount is taken off.
+     */
+    public function synchronizePaymentDiscount(Payment $payment): void
+    {
+        $event = 'payment:' . $payment->getKey() . ':discount';
+        $discount = $payment->isRefund() ? 0.0 : round($payment->effectiveSettlementAmount() - (float) $payment->amount, 2);
+        if ($discount <= 0.009 || !$payment->countsTowardPaid()) {
+            AccountingService::reverseEvent($event);
+
+            return;
+        }
+        $existing = \Illuminate\Support\Facades\DB::table('accounting_postings')->where('event_key', $event)->where('reversed', false)->value('amount');
+        if ($existing !== null && abs((float) $existing - $discount) > 0.009) {
+            AccountingService::reverseEvent($event);
+        }
+        $discountId = AccountingService::accountId(AccountingService::GL_SALES_DISCOUNTS) ?? AccountingService::accountId(AccountingService::GL_SALES_RETURNS);
+        $arId = AccountingService::accountId(AccountingService::GL_ACCOUNTS_RECV);
+        if (!$discountId || !$arId) {
+            $this->missingAccounts('payment discount', $payment->getKey());
+
+            return;
+        }
+        $reference = $payment->order?->invoice_number ?: $payment->order?->order_number ?: 'Payment #' . $payment->getKey();
+        AccountingService::postOnce($event, Payment::class, $payment->getKey(), $discountId, $arId, $discount,
+            $this->dateString($payment->payment_date), "Settlement discount — {$reference}", $payment->reference_number ?: $reference,
+            'customer_payment_discount', ['payment_id' => $payment->getKey(), 'order_id' => $payment->order_id]);
+    }
+
     public function reversePayment(Payment $payment): void
     {
+        AccountingService::reverseEvent('payment:' . $payment->getKey() . ':discount');
         AccountingService::reverseEvent($this->paymentReceiptEvent($payment->getKey()));
         AccountingService::reverseEvent($this->paymentRefundEvent($payment->getKey()));
 

@@ -1,6 +1,5 @@
 @extends('accounting::phase2._page')
 @section('page_body')
-@if(session('status'))<div class="alert alert-success">{{ session('status') }}</div>@endif
 <div class="alert alert-info small">
     API keys are stored only in server <code>.env</code> — never in this form, logs, or browser responses.<br>
     <strong>Gemini:</strong> set <code>ACCOUNTING_AI_GEMINI_API_KEY</code>, choose provider <code>gemini</code>, enable below.
